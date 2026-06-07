@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+  <channel>
+    <title>My Daily Briefing</title>
+    <description>A personal daily news podcast covering world news, tech, and AI communities.</description>
+    <link>https://DHCompanion.github.io/daily-podcast</link>
+    <language>en-us</language>
+    <itunes:author>Me</itunes:author>
+    <itunes:explicit>false</itunes:explicit>
+    <item>
+      <title>Daily Briefing — Sunday, June 7, 2026</title>
+      <description>World news, tech headlines, and the best of r/ClaudeAI and r/ChatGPT for Sunday, June 7, 2026.</description>
+      <pubDate>Sun, 07 Jun 2026 21:14:42 -0000</pubDate>
+      <guid>https://DHCompanion.github.io/daily-podcast/episodes/2026-06-07.mp3</guid>
+      <enclosure url="https://DHCompanion.github.io/daily-podcast/episodes/2026-06-07.mp3" length="5194656" type="audio/mpeg" />
+      <itunes:duration>00:05:24</itunes:duration>
+    </item>
+  </channel>
+</rss>
