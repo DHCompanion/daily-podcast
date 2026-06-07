@@ -46,6 +46,7 @@ NEWS_FEEDS = [
     # Tech
     "https://feeds.arstechnica.com/arstechnica/technology-lab",
     "https://www.wired.com/feed/rss",
+    "http://news.ycombinator.com/rss",
 ]
 
 SUBREDDITS = [
