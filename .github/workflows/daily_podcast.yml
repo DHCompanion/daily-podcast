@@ -1,0 +1,43 @@
+name: Generate Daily Podcast
+
+on:
+  schedule:
+    - cron: "0 11 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate podcast episode
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PODCAST_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: python generate_podcast.py
+
+      - name: Commit episode files
+        run: |
+          git config user.name  "Podcast Bot"
+          git config user.email "podcast-bot@users.noreply.github.com"
+          git add episodes/ feed.xml
+          git diff --cached --quiet || git commit -m "🎙️ Episode $(date +%Y-%m-%d)"
+          git push
