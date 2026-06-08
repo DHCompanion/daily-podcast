@@ -20,7 +20,7 @@ import ssl
 
 import anthropic
 import edge_tts
-import feedparser  # pip install feedparser
+import feedparser
 
 
 # ──────────────────────────────────────────────
@@ -33,7 +33,7 @@ BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.
 
 # Voice — full list at: https://tts.trafficmanager.net/cognitiveservices/voices/list
 # Good conversational picks:
-#   "en-US-BrianMultilingualNeural"  — warm male
+#   "en-US-BrianMultilingualNeural"  — warm male (default)
 #   "en-US-AvaMultilingualNeural"    — natural female
 #   "en-US-AndrewMultilingualNeural" — relaxed male
 TTS_VOICE = "en-US-BrianMultilingualNeural"
@@ -46,7 +46,6 @@ NEWS_FEEDS = [
     # Tech
     "https://feeds.arstechnica.com/arstechnica/technology-lab",
     "https://www.wired.com/feed/rss",
-    "http://news.ycombinator.com/rss",
 ]
 
 SUBREDDITS = [
@@ -60,31 +59,33 @@ EPISODE_DIR       = Path("episodes")
 RSS_FILE          = Path("feed.xml")
 # ──────────────────────────────────────────────
 
+# Register XML namespaces so ElementTree writes them correctly
+ET.register_namespace("itunes",  "http://www.itunes.com/dtds/podcast-1.0.dtd")
+ET.register_namespace("content", "http://purl.org/rss/1.0/modules/content/")
+
+ITUNES_NS = "http://www.itunes.com/dtds/podcast-1.0.dtd"
+
 
 def fetch_news() -> list[dict]:
     """Pull top headlines from RSS feeds."""
     stories = []
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
 
     for url in NEWS_FEEDS:
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:3]:
                 summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-                # Strip HTML tags
                 summary = re.sub(r"<[^>]+>", "", summary)[:500]
                 stories.append({
-                    "source": feed.feed.get("title", url),
-                    "title":  entry.get("title", ""),
+                    "source":  feed.feed.get("title", url),
+                    "title":   entry.get("title", ""),
                     "summary": summary,
-                    "link":   entry.get("link", ""),
+                    "link":    entry.get("link", ""),
                 })
         except Exception as e:
             print(f"  [warn] News feed error {url}: {e}")
 
-    # Deduplicate by title similarity (keep first occurrence)
+    # Deduplicate by title
     seen, unique = set(), []
     for s in stories:
         key = s["title"][:60].lower()
@@ -159,10 +160,10 @@ INSTRUCTIONS:
     • Punchy 30-second cold open / hook
     • Quick "what we're covering today" (20 seconds)
     • World news segment (~8 minutes of spoken content)
-    • Tech news segment (~5 minutes)  
+    • Tech news segment (~5 minutes)
     • Reddit community roundup — r/ClaudeAI (~3 min) then r/ChatGPT (~3 min)
     • Brief sign-off (~30 seconds)
-- Do NOT include stage directions, music cues, or section headers in the output — just the spoken words
+- Do NOT include stage directions, music cues, or section headers — just the spoken words
 - Aim for approximately 2,800–3,500 words (equates to 20-25 min at conversational pace)
 - Connect stories where relevant; add brief context or your take
 - For Reddit, summarize the community vibe and top discussions — don't just list post titles
@@ -192,10 +193,9 @@ async def text_to_speech(script: str, output_path: Path):
 
 
 def get_mp3_duration_seconds(path: Path) -> int:
-    """Rough MP3 duration estimate from file size (good enough for RSS)."""
+    """Rough MP3 duration estimate from file size."""
     size_bytes = path.stat().st_size
-    # ~128 kbps = 16000 bytes/sec
-    return int(size_bytes / 16000)
+    return int(size_bytes / 16000)  # ~128 kbps
 
 
 def format_duration(seconds: int) -> str:
@@ -204,25 +204,35 @@ def format_duration(seconds: int) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
+def build_rss_from_scratch(channel: ET.Element):
+    """Populate a brand-new channel element with feed metadata."""
+    ET.SubElement(channel, "title").text       = PODCAST_TITLE
+    ET.SubElement(channel, "description").text = PODCAST_DESCRIPTION
+    ET.SubElement(channel, "link").text        = BASE_URL
+    ET.SubElement(channel, "language").text    = "en-us"
+    ET.SubElement(channel, f"{{{ITUNES_NS}}}author").text   = PODCAST_AUTHOR
+    ET.SubElement(channel, f"{{{ITUNES_NS}}}explicit").text = "false"
+
+
 def update_rss(episode_path: Path, title: str, description: str, pub_date: datetime.datetime):
-    """Add new episode to the RSS feed XML, creating it if needed."""
+    """Add a new episode item to feed.xml, creating the file if needed."""
+
     if RSS_FILE.exists():
         tree = ET.parse(RSS_FILE)
         root = tree.getroot()
         channel = root.find("channel")
+        if channel is None:
+            raise ValueError("Existing feed.xml has no <channel> element — delete it and rerun.")
     else:
-        root = ET.Element("rss", version="2.0", attrib={
-            "xmlns:itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd",
-            "xmlns:content": "http://purl.org/rss/1.0/modules/content/",
-        })
+        # Build a clean RSS 2.0 root with properly registered namespaces
+        root = ET.Element("rss")
+        root.set("version", "2.0")
+        root.set("xmlns:itunes",  "http://www.itunes.com/dtds/podcast-1.0.dtd")
+        root.set("xmlns:content", "http://purl.org/rss/1.0/modules/content/")
         channel = ET.SubElement(root, "channel")
-        ET.SubElement(channel, "title").text       = PODCAST_TITLE
-        ET.SubElement(channel, "description").text = PODCAST_DESCRIPTION
-        ET.SubElement(channel, "link").text        = BASE_URL
-        ET.SubElement(channel, "language").text    = "en-us"
-        ET.SubElement(channel, "itunes:author").text = PODCAST_AUTHOR
-        ET.SubElement(channel, "itunes:explicit").text = "false"
+        build_rss_from_scratch(channel)
 
+    # Build the new <item>
     duration_sec = get_mp3_duration_seconds(episode_path)
     mp3_url      = f"{BASE_URL}/episodes/{episode_path.name}"
     pub_date_rfc = formatdate(mktime(pub_date.timetuple()))
@@ -232,24 +242,26 @@ def update_rss(episode_path: Path, title: str, description: str, pub_date: datet
     ET.SubElement(item, "description").text = description
     ET.SubElement(item, "pubDate").text     = pub_date_rfc
     ET.SubElement(item, "guid").text        = mp3_url
+
     enclosure = ET.SubElement(item, "enclosure")
     enclosure.set("url",    mp3_url)
     enclosure.set("length", str(episode_path.stat().st_size))
     enclosure.set("type",   "audio/mpeg")
-    ET.SubElement(item, "itunes:duration").text = format_duration(duration_sec)
 
+    ET.SubElement(item, f"{{{ITUNES_NS}}}duration").text = format_duration(duration_sec)
+
+    # Write out with pretty indentation
     ET.indent(root, space="  ")
-    tree = ET.ElementTree(root)
-    tree.write(str(RSS_FILE), xml_declaration=True, encoding="utf-8")
+    ET.ElementTree(root).write(str(RSS_FILE), xml_declaration=True, encoding="utf-8")
     print(f"  RSS feed updated → {RSS_FILE}")
 
 
 def main():
-    today      = datetime.date.today()
-    date_str   = today.strftime("%A, %B %-d, %Y")  # e.g. "Monday, June 9, 2025"
-    ep_slug    = today.strftime("%Y-%m-%d")
-    ep_title   = f"Daily Briefing — {date_str}"
-    ep_desc    = f"World news, tech headlines, and the best of r/ClaudeAI and r/ChatGPT for {date_str}."
+    today    = datetime.date.today()
+    date_str = today.strftime("%A, %B %-d, %Y")
+    ep_slug  = today.strftime("%Y-%m-%d")
+    ep_title = f"Daily Briefing — {date_str}"
+    ep_desc  = f"World news, tech headlines, and the best of r/ClaudeAI and r/ChatGPT for {date_str}."
 
     EPISODE_DIR.mkdir(exist_ok=True)
     mp3_path = EPISODE_DIR / f"{ep_slug}.mp3"
@@ -262,7 +274,6 @@ def main():
     print(f"  Generating episode: {ep_title}")
     print(f"{'='*50}\n")
 
-    # 1. Gather content
     print("[1/4] Fetching news...")
     news = fetch_news()
     print(f"  Got {len(news)} stories")
@@ -274,23 +285,19 @@ def main():
         reddit_data[sub] = posts
         print(f"  r/{sub}: {len(posts)} posts")
 
-    # 2. Generate script
     print("[3/4] Writing podcast script...")
     script = generate_script(news, reddit_data, date_str)
     word_count = len(script.split())
     print(f"  Script: {word_count} words (~{word_count // 140} min)")
 
-    # Save script for reference
     script_path = EPISODE_DIR / f"{ep_slug}.txt"
     script_path.write_text(script)
 
-    # 3. Text-to-speech
     print("[4/4] Converting to audio...")
     asyncio.run(text_to_speech(script, mp3_path))
     size_mb = mp3_path.stat().st_size / 1_000_000
     print(f"  Audio: {mp3_path} ({size_mb:.1f} MB)")
 
-    # 4. Update RSS
     update_rss(mp3_path, ep_title, ep_desc, datetime.datetime.now())
 
     print(f"\n✅ Done! Episode ready: {mp3_path}")
