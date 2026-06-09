@@ -24,7 +24,7 @@ import feedparser
 # ──────────────────────────────────────────────
 # CONFIG — edit these to taste
 # ──────────────────────────────────────────────
-PODCAST_TITLE       = "My Daily Briefing"
+PODCAST_TITLE       = "The Daily Briefing with Walter"
 PODCAST_DESCRIPTION = "A personal daily news podcast covering world news, tech, and AI communities."
 PODCAST_AUTHOR      = "Me"
 BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.github.io/daily-podcast")
@@ -37,11 +37,13 @@ NEWS_FEEDS = [
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://feeds.arstechnica.com/arstechnica/technology-lab",
     "https://www.wired.com/feed/rss",
+    "http://news.ycombinator.com/rss",
 ]
 
 SUBREDDITS = [
     "ClaudeAI",
     "ChatGPT",
+    "vibecoding"
 ]
 
 MAX_NEWS_STORIES = 6
@@ -130,11 +132,11 @@ def build_prompt(news: list[dict], reddit_data: dict[str, list[dict]], date_str:
         else:
             reddit_block += f"\n\n--- r/{sub} ---\n  (no posts available today)\n"
 
-    return f"""You are a warm, witty, and knowledgeable podcast host creating a personal daily briefing for {date_str}.
+    return f"""You are Walter, a warm, witty, and knowledgeable podcast host creating a personal daily briefing for {date_str}. You always refer to yourself as Alex throughout the show.
 
 Your listener wants a CONVERSATIONAL, engaging 20-25 minute podcast covering:
 1. Top world news & tech stories
-2. What's buzzing on r/ClaudeAI and r/ChatGPT
+2. What's buzzing on r/ClaudeAI, r/ChatGPT and r/vibecoding
 
 CONTENT PROVIDED:
 === NEWS STORIES ===
