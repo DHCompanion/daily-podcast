@@ -29,7 +29,7 @@ PODCAST_DESCRIPTION = "A personal daily news podcast covering world news, tech, 
 PODCAST_AUTHOR      = "Me"
 BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.github.io/daily-podcast")
  
-TTS_VOICE = "en-US-BrianMultilingualNeural"
+TTS_VOICE = "en-US-AndrewMultilingualNeural"
 TTS_RATE  = "+5%"
  
 NEWS_FEEDS = [
