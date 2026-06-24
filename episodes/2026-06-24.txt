@@ -1,0 +1,71 @@
+# PERSONAL DAILY BRIEFING — WEDNESDAY, JUNE 24, 2026
+
+---
+
+Hey, welcome back! It's Wednesday, June 24th, and honestly, what a week it's been already. We're only three days in and the news cycle has been absolutely *relentless*. We've got Congress doing something it hasn't done in years, sailors stranded in the middle of a geopolitical chess match, Europe literally melting, and tech companies are making moves that'll probably affect your passwords and your job market. So buckle up—let's get into it.
+
+---
+
+Here's what we're diving into today: we're starting with some pretty significant international drama—Congress is actually pushing back on the Trump administration over Iran, there's a heatwave in Europe that's turning deadly, and the Strait of Hormuz situation is getting more complicated by the hour. Then we're jumping into tech and AI—there's a major government push on quantum-resistant encryption that's making security people very anxious, Oracle's laying off 21,000 people to fund AI infrastructure, and the developer community is buzzing about some genuinely clever stuff on HackerNews. So yeah, a lot to unpack. Let's go.
+
+---
+
+Alright, so first up: Congress actually did something pretty remarkable yesterday. They passed a war powers measure—and I know, I know, that might sound like inside-the-Beltway stuff, but hear me out. This is the first time in years that Congress has meaningfully pushed back on Trump's approach to Iran. The resolution that passed on Tuesday is mostly symbolic, which is always a frustrating caveat, right? Like, "oh it's symbolic, so it doesn't *really* mean anything." But here's the thing—symbolic matters in politics. It adds pressure. It shows that even within the President's own party, there are people saying, "Hey, maybe we should pump the brakes here." The resolution is essentially Congress going on record saying they want to see an end to the conflict. We don't know yet what effect this'll actually have on administration policy, but it's a crack in the usual party-line voting you'd expect.
+
+Now, here's where this gets interesting with the Iran stuff, because we've got this whole other situation brewing. The U.S. and Iran are currently in nuclear talks, except—and this is *delicious* in a depressing way—they can't even agree on what they've agreed to. Trump came out and said Iran's accepted the "highest level" of nuclear inspections. Meanwhile, an Iranian official is saying, quote, "there are no detailed discussions on the nuclear issue." So you've got both sides presenting completely different narratives of the same conversation. It's like they're living in alternate realities. This is what happens when you have a trust deficit that could be measured in light-years.
+
+And then there's the Strait of Hormuz situation, which is getting more tense by the day. The UN is preparing to evacuate sailors who are stranded there—which, by the way, these are people who were just trying to do their jobs, move cargo, keep global shipping flowing. But U.S. Secretary of State Marco Rubio has now publicly warned Iran that no country can charge fees for ships traveling through the strait. It's basically a warning shot: don't even think about it. These are narrow waterways through which an enormous amount of global commerce flows, so when the stakes get high there, it affects fuel prices, shipping costs, the whole chain. The U.N. evacuation is happening against this backdrop of really heightened tensions.
+
+Now let's shift gears to something that's honestly kind of horrifying in a different way: Europe's heatwave. We're talking about forty people drowning in France *since last Thursday*. Forty! In one country, in less than a week. And according to France's Prime Minister Sébastien Lecornu, these are heatwave-related deaths. So people aren't necessarily dying from the heat directly—though some are—but the heat is creating conditions where people are taking more risks, trying to cool off in water, and drowning. It's a cascade effect. The prime minister called these deaths heatwave-related, and that's the story here: Europe isn't just hot, it's *dangerous*. Other European countries are dealing with this too, and we're only at the beginning of summer. If this is what June looks like, July and August could be genuinely catastrophic for public health across the continent.
+
+There's also this interesting political subplot happening in the UK. The article is asking whether Andy Burnham could succeed where Keir Starmer is apparently struggling. Starmer's inherited this absolutely brutal set of challenges—economic stagnation, ascendant populism, a divided nation. And now people are already wondering if his likely successor, Andy Burnham, would get a better shot at fixing things. The premise itself is kind of interesting: can a new leader with fresh political capital actually turn around systemic problems that seem to resist solutions? Probably not immediately, but the British public might be willing to give him a honeymoon period, which is more than Starmer seems to be getting.
+
+And then there's Mark Rutte, the new NATO Secretary General. He's heading to Washington to manage—and this is the phrase that stuck with me—"an unpredictable Trump." The job of a NATO secretary general is genuinely difficult in the best of times. You've got to hold together this alliance of 32 countries with competing interests, and half of them are frankly nervous about American commitment. Rutte has a reputation for being pragmatic, but the article points out that his approach has sometimes frustrated the very European leaders who desperately need him to keep everything together. It's this delicate balance of appeasing Washington while not abandoning Europe. High-wire act, basically.
+
+---
+
+Okay, so now let's talk tech, because this is where things get really interesting and honestly a little alarming depending on your perspective.
+
+The White House just drastically shortened the deadline for dropping quantum-vulnerable cryptography. And look, I know "post-quantum cryptography" sounds like something only nerds care about, but this actually matters to everyone. Here's the deal in plain English: quantum computers, when they become powerful enough, will be able to break the encryption that protects basically everything—your bank accounts, your medical records, state secrets, cryptocurrency, all of it. So the government's been trying to get companies and agencies to switch to quantum-resistant encryption before that happens.
+
+The original timeline was pretty generous. They were giving people time. But now the White House is saying, "Nope, you need to move faster." The official messaging is about national security risks, and they're not wrong—there's this theoretical concern called "harvest now, decrypt later," where bad actors could be collecting encrypted data right now with the plan to crack it once quantum computers exist. Pretty chilling, right? The problem is that quantum-resistant cryptography is still being standardized, and retrofitting systems is genuinely complicated. So you've got this tension between "we need this urgently for security" and "we can't actually do this at the speed you're asking." That's going to create problems. Expect security teams everywhere to be very stressed about this.
+
+Now, here's something that's simultaneously about technology and about something more human: Oracle just announced 21,000 layoffs. That's a *significant* number of jobs disappearing. But here's the context—Oracle's doing this specifically to fund AI infrastructure. They're spending billions on data center infrastructure to support AI, which is a bet they're making that AI is going to be the center of computing going forward. So in a way, it's not just layoffs for cost-cutting; it's a conscious reallocation of resources toward what they see as the future. That doesn't make it better for the 21,000 people losing their jobs, obviously, but it explains the logic. Oracle is basically saying, "We need to be in the AI infrastructure business, and that costs money, so we're restructuring around it."
+
+We've seen this pattern before—companies making huge bets on new technology by laying off people in legacy areas. Sometimes it works out, sometimes it's a blunder. But what's interesting is that this is happening across the industry. You're seeing major tech companies consistently laying off to fund AI infrastructure. It's like the industry is all-in on this being the transformative technology. Whether that pans out, we won't know for a few years, but the resources are definitely flowing that direction.
+
+---
+
+Alright, so let's talk about what the developer community is actually excited about, because HackerNews is always a good pulse-check for what's interesting to people who actually build things.
+
+First story that's got everyone talking: "Vulnerability reports are not special anymore." This one's got 239 points and 129 comments, so there's clearly a lot of discussion. The premise seems to be that we've reached this saturation point where vulnerability reports, which used to be big deals that required immediate attention and could shift entire security postures—they're now just part of the constant noise. Every day there are new vulnerabilities, patches, disclosures. The signal-to-noise ratio has gotten so bad that security teams are basically numb to them. And that's actually dangerous because it means the critical ones can get lost in the shuffle. It's a really important observation about how the security landscape has changed.
+
+Then there's some really cool creative stuff happening. Someone built an ASCII 3D rendering engine and showed it off on HackerNews. That's the kind of project that reminds you why people love building—it's clever, it's technical, it's not immediately useful but it's the kind of thing that could lead somewhere interesting. Ninety-nine points, and the comments are probably full of people saying variations of "this is so cool, I never thought about doing it this way."
+
+Someone else figured out how to use a Raspberry Pi Pico W as a USB Wi-Fi adapter. Again, that's one of those hacker projects that's technically impressive but also practically useful. You can probably imagine scenarios where you'd want that. One hundred and two points, people engaged.
+
+But here's the one that really grabbed attention: "Jerry's Map." This is at 452 points with 52 comments, and I'm *fascinated* by this one. I'm not entirely sure what it is from the headline alone, but with that many points and that level of engagement, it's clearly something the community finds genuinely interesting. If I had to guess, it's probably either a historical project about some incredible, obsessive mapping work, or it's a tool for mapping something in a new way. The fact that it's got 452 points suggests it's the kind of thing people find delightful and surprising.
+
+And then the one with the *most* engagement: FUTO Swipe, a new swipe typing model. This has 509 points and 158 comments, which means people have *thoughts*. FUTO is this interesting privacy-focused tech company, and swipe typing—that thing where you slide your finger across letters instead of tapping each one—has been around for a while, but there's always room for improvement. Especially if it's privacy-focused and not sending data back to Google. The 158 comments suggest people are debating the merits, comparing it to existing solutions, and probably testing it themselves. This is the kind of project that matters in the Android community.
+
+What I love about this HackerNews roundup is that it's not all existential AI doomposting or venture capital drama. It's people building things, solving problems, being creative. The vulnerability report discussion is serious and important, but the ASCII rendering engine and the Raspberry Pi project and Jerry's Map—those are passion projects. They're why people became engineers in the first place.
+
+---
+
+So let me tie some threads together here, because I think there's actually a theme running through all of this.
+
+You've got the government pushing quantum-resistant encryption because it's genuinely concerned about future security threats. At the same time, you've got the tech industry consolidating resources into AI infrastructure, which is a bet that AI is the future. And meanwhile, the developer community—the people actually building things—they're focused on interesting problems: can we make vulnerability reporting better, how do we improve swipe typing, what can we build just to see if we can?
+
+There's this interesting disconnect. The macro level is playing 4D chess with geopolitics and quantum computing and AI dominance. The micro level is developers building clever little projects because they're fun and interesting. Both matter, but they're operating on completely different timescales and with completely different concerns.
+
+The world is also getting hotter, Congress is signaling concern about forever wars, and there are sailors stuck in the Strait of Hormuz while two governments can't even agree on what they just discussed. So yeah, it's genuinely a lot.
+
+But here's my takeaway: if you're feeling overwhelmed by the news cycle, you're probably paying attention at the right level. These are big, complicated problems. The quantum encryption deadline is real and urgent. The heat in Europe is dangerous. The Iran situation is tense. Oracle laying off 21,000 people is significant. But there are also people building cool stuff, solving interesting problems, pushing technology forward. Both things are true.
+
+So that's what's happening in the world right now. Congress is asserting itself, Europe's heatwave is deadly, the Middle East is tense, and tech companies are reorganizing themselves around AI while regular developers just keep building cool things.
+
+Thanks for listening. Hope your Wednesday's going better than the week is suggesting it should. I'll be back tomorrow with more of what you need to know. Stay safe out there, especially if you're in the heat wave zone. Drink water, check on your neighbors—the human stuff matters too.
+
+---
+
+*[End of briefing]*
