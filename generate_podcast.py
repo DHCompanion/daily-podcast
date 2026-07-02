@@ -29,7 +29,7 @@ PODCAST_DESCRIPTION = "A personal daily news podcast covering world news, tech, 
 PODCAST_AUTHOR      = "Me"
 BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.github.io/daily-podcast")
 
-TTS_VOICE = "en-US-AndrewMultilingualNeural"
+TTS_VOICE = "en-US-BrianMultilingualNeural"
 TTS_RATE  = "+5%"
 
 NEWS_FEEDS = [
@@ -149,6 +149,9 @@ INSTRUCTIONS:
     • Tech news + AI company updates (~7 minutes)
     • HackerNews highlights (~5 minutes)
     • Brief sign-off (~30 seconds)
+- Do NOT include ANY section headers, markers, hashtags, or stage directions — just the spoken words
+- Never use ##, #, dashes, or any formatting — pure spoken dialogue only
+- If you naturally want to transition between topics, use conversational bridges like "Now let's talk about..." instead of markers
 - Do NOT include stage directions, music cues, or section headers — just the spoken words
 - Aim for approximately 2,800–3,500 words (equates to 20-25 min at conversational pace)
 - Connect stories where relevant; add brief context or your take
@@ -173,10 +176,72 @@ def generate_script(news: list[dict], hn_stories: list[dict], date_str: str) -> 
 
 
 async def text_to_speech(script: str, output_path: Path):
-    """Convert script to MP3 using edge-tts."""
+    """Convert script to MP3 using edge-tts with robust error handling."""
     print(f"  Generating audio → {output_path.name}")
-    communicate = edge_tts.Communicate(script, voice=TTS_VOICE, rate=TTS_RATE)
-    await communicate.save(str(output_path))
+    
+    # Clean problematic characters
+    script = script.replace("—", "-").replace("…", "...").replace(""", '"').replace(""", '"')
+    
+    try:
+        communicate = edge_tts.Communicate(script, voice=TTS_VOICE, rate=TTS_RATE)
+        await communicate.save(str(output_path))
+    except Exception as e:
+        print(f"  [warn] TTS failed: {e}")
+        # Try splitting into chunks
+        print("  Attempting chunked TTS generation...")
+        sentences = re.split(r'(?<=[.!?])\s+', script)
+        chunks = []
+        current_chunk = ""
+        
+        for sentence in sentences:
+            if len(current_chunk) + len(sentence) < 800:
+                current_chunk += sentence + " "
+            else:
+                if current_chunk.strip():
+                    chunks.append(current_chunk.strip())
+                current_chunk = sentence + " "
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+        
+        import tempfile
+        temp_files = []
+        for i, chunk in enumerate(chunks):
+            try:
+                temp_path = Path(tempfile.gettempdir()) / f"chunk_{i}_{int(datetime.datetime.now().timestamp())}.mp3"
+                communicate = edge_tts.Communicate(chunk, voice=TTS_VOICE, rate=TTS_RATE)
+                await communicate.save(str(temp_path))
+                temp_files.append(temp_path)
+                print(f"  Generated chunk {i+1}/{len(chunks)}")
+            except Exception as chunk_err:
+                print(f"  [warn] Chunk {i} failed: {chunk_err}")
+                continue
+        
+        if not temp_files:
+            raise RuntimeError("Could not generate any audio. Check the script for problematic characters.")
+        
+        # Combine chunks
+        print("  Combining audio chunks...")
+        try:
+            import subprocess
+            concat_file = Path(tempfile.gettempdir()) / f"concat_{int(datetime.datetime.now().timestamp())}.txt"
+            with open(concat_file, 'w') as f:
+                for temp_file in temp_files:
+                    f.write(f"file '{temp_file}'\n")
+            
+            subprocess.run([
+                'ffmpeg', '-f', 'concat', '-safe', '0',
+                '-i', str(concat_file), '-c', 'copy', str(output_path)
+            ], check=True, capture_output=True)
+            
+            for temp_file in temp_files:
+                temp_file.unlink()
+            concat_file.unlink()
+        except Exception:
+            print("  ffmpeg not available, using first chunk")
+            import shutil
+            shutil.copy(temp_files[0], output_path)
+            for temp_file in temp_files:
+                temp_file.unlink()
 
 
 def get_mp3_duration_seconds(path: Path) -> int:
