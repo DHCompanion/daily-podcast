@@ -33,45 +33,100 @@ TTS_VOICE = "en-US-BrianMultilingualNeural"
 TTS_RATE  = "+5%"
 
 NEWS_FEEDS = [
-    # World & Tech News
+    # World News
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+    "https://feeds.npr.org/1004/rss.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://feeds.washingtonpost.com/rss/world",
+    # US News
+    "https://feeds.npr.org/1003/rss.xml",
+    # Tech News
     "https://feeds.arstechnica.com/arstechnica/technology-lab",
     "https://www.wired.com/feed/rss",
+    "https://techcrunch.com/feed/",
+    "https://www.theverge.com/rss/index.xml",
+    "https://feeds.feedburner.com/TheHackersNews",
     # Official AI Company Blogs
     "https://www.anthropic.com/feed.xml",
     "https://openai.com/feed.xml",
     "https://blog.perplexity.ai/feed.xml",
+    "https://deepmind.google/blog/rss.xml",
+    "https://blogs.microsoft.com/ai/feed/",
 ]
 
-MAX_NEWS_STORIES = 8
+MAX_NEWS_STORIES = 10
 MAX_HACKERNEWS_STORIES = 5
+LOOKBACK_DAYS = 3   # how many prior days of episodes to check for duplicate stories
 EPISODE_DIR = Path("episodes")
 RSS_FILE = Path("feed.xml")
 # ──────────────────────────────────────────────
 
 
-def fetch_news() -> list[dict]:
-    """Fetch top headlines from RSS feeds."""
+def get_recent_headlines() -> set[str]:
+    """Read the last few days of episode scripts to find already-covered stories."""
+    recent = set()
+    if not EPISODE_DIR.exists():
+        return recent
+
+    today = datetime.date.today()
+    for days_back in range(1, LOOKBACK_DAYS + 1):
+        day = today - datetime.timedelta(days=days_back)
+        # We store the raw fetched headlines alongside each episode as a .headlines file
+        headlines_file = EPISODE_DIR / f"{day.strftime('%Y-%m-%d')}.headlines"
+        if headlines_file.exists():
+            try:
+                for line in headlines_file.read_text(encoding="utf-8").splitlines():
+                    line = line.strip().lower()
+                    if line:
+                        recent.add(line)
+            except Exception as e:
+                print(f"  [warn] Could not read {headlines_file}: {e}")
+    return recent
+
+
+def normalize_headline(title: str) -> str:
+    """Normalize a headline for fuzzy duplicate matching."""
+    # Lowercase, strip punctuation, collapse whitespace
+    t = re.sub(r"[^\w\s]", "", title.lower())
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def fetch_news(recent_headlines: set[str]) -> list[dict]:
+    """Fetch top headlines from RSS feeds, skipping recently-covered stories."""
     stories = []
     for url in NEWS_FEEDS:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:3]:
+            for entry in feed.entries[:4]:
+                title = entry.get("title", "")
+                norm = normalize_headline(title)
+
+                # Skip if we covered this (or something very similar) recently
+                if norm in recent_headlines:
+                    continue
+                # Also skip if a close variant was covered (first 8 words match)
+                norm_prefix = " ".join(norm.split()[:8])
+                if any(norm_prefix and norm_prefix in rh for rh in recent_headlines):
+                    continue
+
                 summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
                 summary = re.sub(r"<[^>]+>", "", summary)[:500]
                 stories.append({
                     "source":  feed.feed.get("title", url),
-                    "title":   entry.get("title", ""),
+                    "title":   title,
                     "summary": summary,
                     "link":    entry.get("link", ""),
+                    "norm":    norm,
                 })
         except Exception as e:
             print(f"  [warn] News feed error {url}: {e}")
 
+    # Deduplicate within today's batch too
     seen, unique = set(), []
     for s in stories:
-        key = s["title"][:60].lower()
+        key = s["norm"][:60]
         if key not in seen:
             seen.add(key)
             unique.append(s)
@@ -82,24 +137,22 @@ def fetch_hackernews() -> list[dict]:
     """Fetch top stories from HackerNews via the public API (no auth needed)."""
     stories = []
     try:
-        # Get top story IDs
         url = "https://hacker-news.firebaseio.com/v0/topstories.json"
         req = urllib.request.Request(url, headers={"User-Agent": "daily-podcast-bot/1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             story_ids = json.loads(resp.read().decode("utf-8"))[:15]
-        
-        # Fetch details for each story
+
         for story_id in story_ids[:MAX_HACKERNEWS_STORIES]:
             try:
                 story_url = f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
                 with urllib.request.urlopen(story_url, timeout=5) as resp:
                     story = json.loads(resp.read().decode("utf-8"))
-                
+
                 if story.get("type") not in ["story", "poll"]:
                     continue
                 if story.get("dead") or story.get("deleted"):
                     continue
-                
+
                 stories.append({
                     "source": "HackerNews",
                     "title": story.get("title", ""),
@@ -111,7 +164,7 @@ def fetch_hackernews() -> list[dict]:
                 continue
     except Exception as e:
         print(f"  [warn] HackerNews fetch error: {e}")
-    
+
     return stories
 
 
@@ -129,7 +182,7 @@ def build_prompt(news: list[dict], hn_stories: list[dict], date_str: str) -> str
 
     return f"""You are a warm, witty, and knowledgeable podcast host creating a personal daily briefing for {date_str}.
 
-Your listener wants a CONVERSATIONAL, engaging 20-25 minute podcast covering:
+Your listener wants a CONVERSATIONAL, engaging podcast covering:
 1. Top world news & tech stories from official sources
 2. Trending stories on HackerNews
 
@@ -143,17 +196,17 @@ INSTRUCTIONS:
 - Tone: friendly, conversational, like a smart friend catching you up — not stiff or robotic
 - Use natural spoken language: contractions, rhetorical questions, brief jokes where fitting
 - Structure:
-    • Punchy 30-second cold open / hook
-    • Quick "what we're covering today" (20 seconds)
-    • World news segment (~5 minutes of spoken content)
-    • Tech news + AI company updates (~7 minutes)
-    • HackerNews highlights (~5 minutes)
-    • Brief sign-off (~30 seconds)
+    • Punchy cold open / hook
+    • Quick "what we're covering today"
+    • World news segment
+    • Tech news + AI company updates
+    • HackerNews highlights
+    • Brief sign-off
 - Do NOT include ANY section headers, markers, hashtags, or stage directions — just the spoken words
 - Never use ##, #, dashes, or any formatting — pure spoken dialogue only
 - If you naturally want to transition between topics, use conversational bridges like "Now let's talk about..." instead of markers
-- Do NOT include stage directions, music cues, or section headers — just the spoken words
-- Aim for approximately 2,800–3,500 words (equates to 20-25 min at conversational pace)
+- NEVER mention or reference how long the episode is, how many minutes it will take, or any time estimates — do not say things like "over the next 20 minutes" or "in the next few minutes"
+- Cover each story with enough depth to be interesting, then move on naturally
 - Connect stories where relevant; add brief context or your take
 - For HackerNews, summarize the trending topics and what the tech community is excited about
 - Pay special attention to announcements from Anthropic, OpenAI, and Perplexity — don't bury them
@@ -178,21 +231,22 @@ def generate_script(news: list[dict], hn_stories: list[dict], date_str: str) -> 
 async def text_to_speech(script: str, output_path: Path):
     """Convert script to MP3 using edge-tts with robust error handling."""
     print(f"  Generating audio → {output_path.name}")
-    
+
     # Clean problematic characters
-    script = script.replace("—", "-").replace("…", "...").replace(""", '"').replace(""", '"')
-    
+    script = script.replace("\u2014", "-").replace("\u2026", "...")
+    script = script.replace("\u201c", '"').replace("\u201d", '"')
+    script = script.replace("\u2018", "'").replace("\u2019", "'")
+
     try:
         communicate = edge_tts.Communicate(script, voice=TTS_VOICE, rate=TTS_RATE)
         await communicate.save(str(output_path))
     except Exception as e:
         print(f"  [warn] TTS failed: {e}")
-        # Try splitting into chunks
         print("  Attempting chunked TTS generation...")
         sentences = re.split(r'(?<=[.!?])\s+', script)
         chunks = []
         current_chunk = ""
-        
+
         for sentence in sentences:
             if len(current_chunk) + len(sentence) < 800:
                 current_chunk += sentence + " "
@@ -202,7 +256,7 @@ async def text_to_speech(script: str, output_path: Path):
                 current_chunk = sentence + " "
         if current_chunk.strip():
             chunks.append(current_chunk.strip())
-        
+
         import tempfile
         temp_files = []
         for i, chunk in enumerate(chunks):
@@ -215,11 +269,10 @@ async def text_to_speech(script: str, output_path: Path):
             except Exception as chunk_err:
                 print(f"  [warn] Chunk {i} failed: {chunk_err}")
                 continue
-        
+
         if not temp_files:
             raise RuntimeError("Could not generate any audio. Check the script for problematic characters.")
-        
-        # Combine chunks
+
         print("  Combining audio chunks...")
         try:
             import subprocess
@@ -227,12 +280,12 @@ async def text_to_speech(script: str, output_path: Path):
             with open(concat_file, 'w') as f:
                 for temp_file in temp_files:
                     f.write(f"file '{temp_file}'\n")
-            
+
             subprocess.run([
                 'ffmpeg', '-f', 'concat', '-safe', '0',
                 '-i', str(concat_file), '-c', 'copy', str(output_path)
             ], check=True, capture_output=True)
-            
+
             for temp_file in temp_files:
                 temp_file.unlink()
             concat_file.unlink()
@@ -322,22 +375,31 @@ def main():
     print(f"  Generating episode: {ep_title}")
     print(f"{'='*50}\n")
 
-    print("[1/4] Fetching news...")
-    news = fetch_news()
-    print(f"  Got {len(news)} news stories")
+    print("[1/5] Checking recent episodes for duplicate stories...")
+    recent_headlines = get_recent_headlines()
+    print(f"  Found {len(recent_headlines)} headlines from last {LOOKBACK_DAYS} days")
 
-    print("[2/4] Fetching HackerNews...")
+    print("[2/5] Fetching news...")
+    news = fetch_news(recent_headlines)
+    print(f"  Got {len(news)} fresh news stories")
+
+    print("[3/5] Fetching HackerNews...")
     hn_stories = fetch_hackernews()
     print(f"  Got {len(hn_stories)} HackerNews stories")
 
-    print("[3/4] Writing podcast script...")
+    # Save today's headlines so future runs can skip them
+    headlines_file = EPISODE_DIR / f"{ep_slug}.headlines"
+    all_titles = [normalize_headline(s["title"]) for s in news]
+    headlines_file.write_text("\n".join(all_titles), encoding="utf-8")
+
+    print("[4/5] Writing podcast script...")
     script = generate_script(news, hn_stories, date_str)
     word_count = len(script.split())
     print(f"  Script: {word_count} words (~{word_count // 140} min)")
 
     (EPISODE_DIR / f"{ep_slug}.txt").write_text(script)
 
-    print("[4/4] Converting to audio...")
+    print("[5/5] Converting to audio...")
     asyncio.run(text_to_speech(script, mp3_path))
     size_mb = mp3_path.stat().st_size / 1_000_000
     print(f"  Audio: {mp3_path} ({size_mb:.1f} MB)")
