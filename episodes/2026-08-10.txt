@@ -1,0 +1,37 @@
+# Monday, August 10, 2026 — Daily Briefing
+
+Hey, welcome back! It's Monday morning, which means the world didn't take a weekend break — surprise, surprise. We've got quite the mix today, from high-stakes international drama to some genuinely fascinating AI developments that are changing how we code. So grab your coffee and let's get into it.
+
+Today we're tracking a major extradition case in Dublin, some pretty consequential Middle East tensions that are still simmering, and then we're diving into what's happening in tech — because Claude just made some moves that are getting people's attention, and there's some genuinely weird stuff happening in the startup world too.
+
+Let's start with the world news, because honestly, there's a lot happening right now.
+
+So first up from the BBC — Daniel Kinahan, this 49-year-old suspected crime boss, just appeared in court in Dublin after being extradited from Dubai. And here's the detail that really caught my eye: the Irish Prison Service literally bought a bulletproof and bombproof van just to transport this guy to court. I mean, that tells you something about how seriously they're taking this. We don't have all the details on what comes next, but this is a pretty significant moment in organized crime enforcement.
+
+Now, shifting gears to the Middle East — and this is where things get complicated — Netanyahu just flatly rejected Trump's new fifteen-point plan for Gaza. The Israeli PM is saying his military won't pull out until Hamas is genuinely disarmed. So we've got this situation where you've got international pressure for peace, you've got a specific plan on the table, and you've got Israel saying "not yet." This isn't new territory, but it does mean that particular roadmap is pretty much dead in the water for now.
+
+And here's something that doesn't get as much attention but it's actually really important: Israel and the US aren't just targeting Hezbollah's weapons and fighters anymore — they're going after their money. The New York Times has been looking into this financial campaign, and it's actually a pretty clever strategy. You cut off funding, you disrupt operations from a completely different angle. It's less flashy than military strikes but potentially just as effective.
+
+Speaking of leverage and money, Iran is using the Strait of Hormuz as basically their best bargaining chip right now. They're pushing Washington to release frozen Iranian assets, lift sanctions, and end the naval blockade. And look, from Iran's perspective, that waterway is critical — it's their leverage in negotiations. The stakes here are genuinely high because the strait matters for global energy markets. If that gets disrupted, it affects oil prices worldwide.
+
+Oh, and one more thing on Iran — they just appointed Mohsen Rezaei, this longtime commander in the Islamic Revolutionary Guard Corps, to the top security post. It's pretty notable because it suggests Iran's old guard is consolidating power, which tells you something about the direction the country's heading politically.
+
+Before we leave world news, I have to mention that Demi Vollering won the Tour de France for the second time. She crushed it — finished over a minute ahead of her nearest competitor. Two wins in a few years is legitimately impressive. Good to have some good news in the mix, right?
+
+Okay, let's talk tech now, because Anthropic just made a move that's gotten a lot of traction.
+
+They've made auto mode the default in Claude Code. So if you've been using Claude for coding, you're probably familiar with having to prompt it step by step. Now, auto mode means Claude will just start working through problems and building code without constantly asking you for confirmation on each step. The HackerNews community seems pretty split on this — some people are excited, others are worried about unintended consequences. But honestly, it makes sense from a usability standpoint. If you've given the AI enough context, why make it ask permission for every single action?
+
+This ties into a broader trend we're seeing in AI development where companies are basically trying to make these tools more autonomous and productive. It's the trade-off we keep talking about: more power and speed, but less granular control.
+
+Now, speaking of the AI world getting messy — there's this HackerNews thread about HackerOne that's blown up. HackerOne is this bug bounty platform, and apparently something significant happened. I don't want to speculate on details I don't have, but it's getting real engagement in the tech community, which usually means there's something substantive there. Worth keeping an eye on.
+
+There's also this really cool project someone shared — a voice-driven murder mystery game where you interview AI suspects using your voice. It's getting some traction because it's just a genuinely creative use of voice AI and interactive storytelling. Little reminder that sometimes the most interesting tech developments happen at the edges, not just with the big companies.
+
+And then there's this research paper about H-1B immigration and its long-run effects on the US economy — dropped in July. It's getting attention because the whole H-1B visa thing is contentious. People care about this. Some in tech want more immigration visas for skilled workers, some want fewer. The research community's weighing in.
+
+There's also this philosophical thread getting some engagement about why we assume everyone should be working. It's a bit of a turn toward the existential, which is kind of fun for a Monday.
+
+Alright, that's what's on the radar today. We're looking at a world that's still very much in flux — geopolitically, tensions are high, but also companies are building new tools and making new bets. It's the normal contradiction of being alive in 2026, I guess.
+
+Thanks for tuning in. Hope this caught you up without overwhelming you. I'll be back tomorrow with whatever Monday-night-into-Tuesday news decides to break. Take care.
