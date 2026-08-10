@@ -235,6 +235,7 @@ INSTRUCTIONS:
 - Use natural spoken language: contractions, rhetorical questions, brief jokes where fitting
 - Structure:
     • Punchy cold open / hook
+    • Introduce yourself as the host and your name is Walter
     • Quick "what we're covering today"
     • World news segment
     • Tech news + AI company updates
