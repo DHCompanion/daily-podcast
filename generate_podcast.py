@@ -29,7 +29,7 @@ PODCAST_DESCRIPTION = "A personal daily news podcast covering world news, tech, 
 PODCAST_AUTHOR      = "Me"
 BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.github.io/daily-podcast")
 
-TTS_VOICE = "en-US-AndrewMultilingualNeural"
+TTS_VOICE = "en-US-BrianMultilingualNeural"
 TTS_RATE  = "+5%"
 
 NEWS_FEEDS = [
@@ -55,8 +55,9 @@ NEWS_FEEDS = [
     "https://blogs.microsoft.com/ai/feed/",
 ]
 
-MAX_NEWS_STORIES = 10
-MAX_HACKERNEWS_STORIES = 5
+MAX_NEWS_STORIES = 8
+MAX_HACKERNEWS_STORIES = 3
+MAX_HN_COMMENTS = 3   # top comments to pull per HackerNews story for context
 LOOKBACK_DAYS = 3   # how many prior days of episodes to check for duplicate stories
 EPISODE_DIR = Path("episodes")
 RSS_FILE = Path("feed.xml")
@@ -133,6 +134,33 @@ def fetch_news(recent_headlines: set[str]) -> list[dict]:
     return unique[:MAX_NEWS_STORIES]
 
 
+def fetch_hn_comments(kid_ids: list, limit: int) -> list[str]:
+    """Fetch and clean the top-level comments for a HackerNews story."""
+    comments = []
+    for kid_id in kid_ids[:limit]:
+        try:
+            kid_url = f"https://hacker-news.firebaseio.com/v0/item/{kid_id}.json"
+            with urllib.request.urlopen(kid_url, timeout=5) as resp:
+                kid = json.loads(resp.read().decode("utf-8"))
+            if kid.get("dead") or kid.get("deleted"):
+                continue
+            text = kid.get("text", "")
+            if not text:
+                continue
+            # Strip HTML tags and decode common entities
+            text = re.sub(r"<[^>]+>", " ", text)
+            text = (text.replace("&#x27;", "'").replace("&quot;", '"')
+                        .replace("&amp;", "&").replace("&gt;", ">")
+                        .replace("&lt;", "<").replace("&#x2F;", "/"))
+            text = re.sub(r"\s+", " ", text).strip()
+            if text:
+                comments.append(text[:400])  # cap length per comment
+        except Exception as e:
+            print(f"  [warn] HN comment {kid_id} fetch error: {e}")
+            continue
+    return comments
+
+
 def fetch_hackernews() -> list[dict]:
     """Fetch top stories from HackerNews via the public API (no auth needed)."""
     stories = []
@@ -153,11 +181,15 @@ def fetch_hackernews() -> list[dict]:
                 if story.get("dead") or story.get("deleted"):
                     continue
 
+                # Pull the top few comments for discussion context
+                comments = fetch_hn_comments(story.get("kids", []), MAX_HN_COMMENTS)
+
                 stories.append({
                     "source": "HackerNews",
                     "title": story.get("title", ""),
                     "summary": f"{story.get('score', 0)} points, {story.get('descendants', 0)} comments",
                     "link": story.get("url", f"https://news.ycombinator.com/item?id={story_id}"),
+                    "comments": comments,
                 })
             except Exception as e:
                 print(f"  [warn] HN story {story_id} fetch error: {e}")
@@ -179,6 +211,12 @@ def build_prompt(news: list[dict], hn_stories: list[dict], date_str: str) -> str
         hn_block = "\n\n--- HackerNews Top Stories ---\n"
         for s in hn_stories:
             hn_block += f"  TITLE: {s['title']}\n  STATS: {s['summary']}\n"
+            comments = s.get("comments", [])
+            if comments:
+                hn_block += "  TOP COMMENTS FROM THE DISCUSSION:\n"
+                for c in comments:
+                    hn_block += f"    - {c}\n"
+            hn_block += "\n"
 
     return f"""You are a warm, witty, and knowledgeable podcast host creating a personal daily briefing for {date_str}.
 
@@ -206,12 +244,19 @@ INSTRUCTIONS:
 - Never use ##, #, dashes, or any formatting — pure spoken dialogue only
 - If you naturally want to transition between topics, use conversational bridges like "Now let's talk about..." instead of markers
 - NEVER mention or reference how long the episode is, how many minutes it will take, or any time estimates — do not say things like "over the next 20 minutes" or "in the next few minutes"
-- Cover each story with enough depth to be interesting, then move on naturally
-- Connect stories where relevant; add brief context or your take
-- For HackerNews, summarize the trending topics and what the tech community is excited about
-- Pay special attention to announcements from Anthropic, OpenAI, and Perplexity — don't bury them
 
-Write the full script now:"""
+DEPTH REQUIREMENTS (very important — do not write a thin, rushed script):
+- The complete script MUST be at least 1,800 words, and ideally 2,000 to 2,400 words. This is a firm floor — keep writing until you reach it.
+- Spend real time on EACH story. For every story, don't just state the headline — explain what happened, why it matters, who's affected, and add your own brief context, analysis, or reaction. Aim for roughly 3 to 5 substantial spoken sentences per story at minimum.
+- Draw connections between related stories, pose rhetorical questions, and give the listener something to think about — this is what fills out the runtime naturally.
+- Do NOT summarize everything quickly and wrap up early. A rushed 5-minute episode is a failure. Treat every story as worth a proper, unhurried discussion.
+- For HackerNews, don't just list titles — explain what each project or discussion is about and why the tech community cares. Use the TOP COMMENTS provided to convey what people are actually saying: the debates, the praise, the skepticism, the interesting angles. Paraphrase the gist of the discussion in your own words rather than quoting usernames.
+- Pay special attention to announcements from Anthropic, OpenAI, and Perplexity — give these extra depth, don't bury them.
+- Connect stories where relevant; add brief context or your take.
+
+Remember: the word-count target above is an instruction to YOU for writing — never say the word count or any length/time reference out loud in the script.
+
+Write the full script now, and keep going until you've covered every story with real depth and hit the word-count floor:"""
 
 
 def generate_script(news: list[dict], hn_stories: list[dict], date_str: str) -> str:
@@ -222,7 +267,7 @@ def generate_script(news: list[dict], hn_stories: list[dict], date_str: str) -> 
     print("  Generating script with Claude Haiku...")
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=4096,
+        max_tokens=8192,
         messages=[{"role": "user", "content": prompt}],
     )
     return message.content[0].text
