@@ -7,7 +7,15 @@
   <language>en-us</language>
   <itunes:author>Me</itunes:author>
   <itunes:explicit>false</itunes:explicit>
-                                                                                                                                                                                                          <item>
+                                                                                                                                                                                                            <item>
+    <title>Daily Briefing — Thursday, October 29, 2026</title>
+    <description>World news, tech, and AI company updates from official sources and HackerNews for Thursday, October 29, 2026.</description>
+    <pubDate>Thu, 29 Oct 2026 11:15:37 -0000</pubDate>
+    <guid>https://DHCompanion.github.io/daily-podcast/episodes/2026-10-29.mp3</guid>
+    <enclosure url="https://DHCompanion.github.io/daily-podcast/episodes/2026-10-29.mp3" length="6240816" type="audio/mpeg"/>
+    <itunes:duration>00:06:30</itunes:duration>
+  </item>
+  <item>
     <title>Daily Briefing — Wednesday, October 28, 2026</title>
     <description>World news, tech, and AI company updates from official sources and HackerNews for Wednesday, October 28, 2026.</description>
     <pubDate>Wed, 28 Oct 2026 10:57:26 -0000</pubDate>
