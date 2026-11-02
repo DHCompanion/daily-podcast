@@ -31,7 +31,7 @@ PODCAST_AUTHOR      = "Me"
 BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.github.io/daily-podcast")
 
 HOST_NAME = "Nora"
-TTS_VOICE = "en-US-AvaMultilingualNeural"
+TTS_VOICE = "en-US-AvaNeural"  # Multilingual variant sounds the same but is ~3x slower and times out
 TTS_RATE  = "+5%"
 MODEL     = "claude-haiku-4-5-20251001"
 
@@ -128,7 +128,7 @@ def fetch_feeds(urls: list[str], recent_kw: list[set[str]]) -> list[dict]:
             if not feed.entries:
                 print(f"  [warn] No entries from {url} (status {feed.get('status', '?')})")
             for entry in feed.entries[:ITEMS_PER_FEED]:
-                title = entry.get("title", "").strip()
+                title = html.unescape(entry.get("title", "")).strip()
                 published = entry.get("published_parsed") or entry.get("updated_parsed")
                 if not title:
                     continue
@@ -138,7 +138,7 @@ def fetch_feeds(urls: list[str], recent_kw: list[set[str]]) -> list[dict]:
                 if any(is_similar(kw, r) for r in recent_kw):
                     continue
                 summary = entry.get("summary", "") or entry.get("description", "")
-                summary = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", summary)).strip()[:600]
+                summary = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", summary))).strip()[:600]
                 stories.append({
                     "source":  feed.feed.get("title", url),
                     "title":   title,
@@ -340,76 +340,49 @@ def generate_script(client, prompt: str) -> str:
     return message.content[0].text
 
 async def text_to_speech(script: str, output_path: Path):
-    """Convert script to MP3 using edge-tts with robust error handling."""
+    """Convert script to MP3 with edge-tts, in chunks (long single requests fail)."""
     print(f"  Generating audio → {output_path.name}")
 
-    # Clean problematic characters
-    script = script.replace("\u2014", "-").replace("\u2026", "...")
-    script = script.replace("\u201c", '"').replace("\u201d", '"')
-    script = script.replace("\u2018", "'").replace("\u2019", "'")
+    script = script.replace("—", ", ").replace("–", "-").replace("…", "...")
+    script = script.replace("“", '"').replace("”", '"')
+    script = script.replace("‘", "'").replace("’", "'")
 
-    try:
-        communicate = edge_tts.Communicate(script, voice=TTS_VOICE, rate=TTS_RATE)
-        await communicate.save(str(output_path))
-    except Exception as e:
-        print(f"  [warn] TTS failed: {e}")
-        print("  Attempting chunked TTS generation...")
-        sentences = re.split(r'(?<=[.!?])\s+', script)
-        chunks = []
-        current_chunk = ""
+    # Split on sentence boundaries into ~2,500-char chunks
+    chunks, current = [], ""
+    for sentence in re.split(r"(?<=[.!?])\s+", script):
+        if current and len(current) + len(sentence) > 2500:
+            chunks.append(current.strip())
+            current = ""
+        current += sentence + " "
+    if current.strip():
+        chunks.append(current.strip())
 
-        for sentence in sentences:
-            if len(current_chunk) + len(sentence) < 800:
-                current_chunk += sentence + " "
-            else:
-                if current_chunk.strip():
-                    chunks.append(current_chunk.strip())
-                current_chunk = sentence + " "
-        if current_chunk.strip():
-            chunks.append(current_chunk.strip())
-
-        import tempfile
-        temp_files = []
-        for i, chunk in enumerate(chunks):
+    audio = bytearray()
+    for i, chunk in enumerate(chunks, 1):
+        for attempt in range(1, 5):
             try:
-                temp_path = Path(tempfile.gettempdir()) / f"chunk_{i}_{int(datetime.datetime.now().timestamp())}.mp3"
-                communicate = edge_tts.Communicate(chunk, voice=TTS_VOICE, rate=TTS_RATE)
-                await communicate.save(str(temp_path))
-                temp_files.append(temp_path)
-                print(f"  Generated chunk {i+1}/{len(chunks)}")
-            except Exception as chunk_err:
-                print(f"  [warn] Chunk {i} failed: {chunk_err}")
-                continue
+                part = bytearray()
+                async for msg in edge_tts.Communicate(chunk, voice=TTS_VOICE, rate=TTS_RATE).stream():
+                    if msg["type"] == "audio":
+                        part += msg["data"]
+                if not part:
+                    raise RuntimeError("no audio received")
+                audio += part
+                print(f"  Chunk {i}/{len(chunks)} ok")
+                break
+            except Exception as e:
+                print(f"  [warn] Chunk {i} attempt {attempt} failed: {e}")
+                await asyncio.sleep(5 * attempt)
+        else:
+            # Fail the run rather than publish an episode with a hole in it
+            raise RuntimeError(f"TTS chunk {i} failed after retries: {chunk[:80]!r}")
 
-        if not temp_files:
-            raise RuntimeError("Could not generate any audio. Check the script for problematic characters.")
-
-        print("  Combining audio chunks...")
-        try:
-            import subprocess
-            concat_file = Path(tempfile.gettempdir()) / f"concat_{int(datetime.datetime.now().timestamp())}.txt"
-            with open(concat_file, 'w') as f:
-                for temp_file in temp_files:
-                    f.write(f"file '{temp_file}'\n")
-
-            subprocess.run([
-                'ffmpeg', '-f', 'concat', '-safe', '0',
-                '-i', str(concat_file), '-c', 'copy', str(output_path)
-            ], check=True, capture_output=True)
-
-            for temp_file in temp_files:
-                temp_file.unlink()
-            concat_file.unlink()
-        except Exception:
-            print("  ffmpeg not available, using first chunk")
-            import shutil
-            shutil.copy(temp_files[0], output_path)
-            for temp_file in temp_files:
-                temp_file.unlink()
+    # edge-tts emits headerless MP3 frames, so plain concatenation is a valid MP3
+    output_path.write_bytes(audio)
 
 
 def get_mp3_duration_seconds(path: Path) -> int:
-    return int(path.stat().st_size / 16000)
+    return int(path.stat().st_size / 6000)  # edge-tts default: 48 kbps mono MP3
 
 
 def format_duration(seconds: int) -> str:
