@@ -2,8 +2,15 @@ name: Generate Daily Podcast
 
 on:
   schedule:
-    - cron: "0 05 * * 1-5"
+    # Target: episode ready by 5 AM US Central. GitHub cron is UTC-only and often starts runs late,
+    # so fire twice; the second run no-ops because generate_podcast.py skips if today's MP3 exists.
+    # 09:17 / 10:17 UTC = 3:17 / 4:17 AM CST (Nov–Mar), 4:17 / 5:17 AM CDT (Mar–Nov)
+    - cron: "17 9,10 * * 1-5"
   workflow_dispatch:
+
+concurrency:
+  group: daily-podcast
+  cancel-in-progress: false
 
 permissions:
   contents: write

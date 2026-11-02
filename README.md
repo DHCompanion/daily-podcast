@@ -75,12 +75,14 @@ All the easy knobs are at the top of `generate_podcast.py`:
 
 | Variable | What it does |
 |---|---|
+| `HOST_NAME` | The narrator's on-air name |
 | `TTS_VOICE` | Change the narrator voice |
 | `TTS_RATE` | Speed up/slow down speech |
-| `NEWS_FEEDS` | Add/remove RSS news sources |
-| `SUBREDDITS` | Change which subreddits to cover |
-| `MAX_NEWS_STORIES` | How many news items to include |
-| `MAX_REDDIT_POSTS` | Posts per subreddit |
+| `NEWS_FEEDS` | World/US/tech RSS sources (candidate pool for the top stories) |
+| `AI_FEEDS` | AI lab blogs + independent AI coverage |
+| `TOP_NEWS_STORIES` / `HN_STORIES` | How many deep-dive stories per segment |
+| `MAX_AGE_HOURS` | Ignore feed items older than this |
+| `LOOKBACK_EPISODES` | How many past episodes to check for repeats |
 
 ### Changing the schedule
 
@@ -100,8 +102,8 @@ edge-tts --list-voices | grep en-US
 ```
 
 Good conversational picks:
-- `en-US-BrianMultilingualNeural` — warm male (current default)
-- `en-US-AvaMultilingualNeural` — natural female
+- `en-US-AvaMultilingualNeural` — natural female (current default)
+- `en-US-BrianMultilingualNeural` — warm male
 - `en-US-AndrewMultilingualNeural` — relaxed male
 
 ---

@@ -6,6 +6,7 @@ converts to MP3 with edge-tts, and updates the RSS feed.
 """
 
 import os
+import html
 import json
 import re
 import asyncio
@@ -29,8 +30,10 @@ PODCAST_DESCRIPTION = "A personal daily news podcast covering world news, tech, 
 PODCAST_AUTHOR      = "Me"
 BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.github.io/daily-podcast")
 
-TTS_VOICE = "en-US-SteffanNeural"
+HOST_NAME = "Nora"
+TTS_VOICE = "en-US-AvaMultilingualNeural"
 TTS_RATE  = "+5%"
+MODEL     = "claude-haiku-4-5-20251001"
 
 NEWS_FEEDS = [
     # World News
@@ -38,7 +41,6 @@ NEWS_FEEDS = [
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://feeds.npr.org/1004/rss.xml",
     "https://www.aljazeera.com/xml/rss/all.xml",
-    "https://feeds.washingtonpost.com/rss/world",
     # US News
     "https://feeds.npr.org/1003/rss.xml",
     # Tech News
@@ -47,232 +49,295 @@ NEWS_FEEDS = [
     "https://techcrunch.com/feed/",
     "https://www.theverge.com/rss/index.xml",
     "https://feeds.feedburner.com/TheHackersNews",
-    # Official AI Company Blogs
-    "https://www.anthropic.com/feed.xml",
-    "https://openai.com/feed.xml",
-    "https://blog.perplexity.ai/feed.xml",
-    "https://deepmind.google/blog/rss.xml",
-    "https://blogs.microsoft.com/ai/feed/",
 ]
 
-MAX_NEWS_STORIES = 8
-MAX_HACKERNEWS_STORIES = 3
-MAX_HN_COMMENTS = 3   # top comments to pull per HackerNews story for context
-LOOKBACK_DAYS = 3   # how many prior days of episodes to check for duplicate stories
+AI_FEEDS = [
+    # Official lab announcements
+    # Anthropic has no official RSS; this community feed scrapes anthropic.com/news
+    "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml",
+    "https://openai.com/news/rss.xml",
+    "https://deepmind.google/blog/rss.xml",
+    "https://blog.google/technology/ai/rss/",
+    "https://mistral.ai/rss.xml",
+    "https://huggingface.co/blog/feed.xml",
+    # Independent AI coverage (catches news from labs without feeds: Meta, xAI, Perplexity...)
+    "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+    "https://arstechnica.com/ai/feed/",
+    "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+    "https://the-decoder.com/feed/",
+    "https://simonwillison.net/atom/everything/",
+]
+
+ITEMS_PER_FEED     = 6    # entries considered from each feed
+MAX_AGE_HOURS      = 72   # ignore feed entries older than this (covers the weekend gap)
+TOP_NEWS_STORIES   = 3    # deep-dive news stories per episode
+MAX_AI_STORIES     = 4
+HN_CANDIDATES      = 30   # top HN stories scanned before picking
+HN_STORIES         = 3    # deep-dive HN stories per episode
+MAX_HN_COMMENTS    = 6    # top comments pulled per picked HN story
+LOOKBACK_EPISODES  = 5    # prior episodes checked for repeat stories
 EPISODE_DIR = Path("episodes")
 RSS_FILE = Path("feed.xml")
 # ──────────────────────────────────────────────
 
-
-def get_recent_headlines() -> set[str]:
-    """Read the last few days of episode scripts to find already-covered stories."""
-    recent = set()
-    if not EPISODE_DIR.exists():
-        return recent
-
-    today = datetime.date.today()
-    for days_back in range(1, LOOKBACK_DAYS + 1):
-        day = today - datetime.timedelta(days=days_back)
-        # We store the raw fetched headlines alongside each episode as a .headlines file
-        headlines_file = EPISODE_DIR / f"{day.strftime('%Y-%m-%d')}.headlines"
-        if headlines_file.exists():
-            try:
-                for line in headlines_file.read_text(encoding="utf-8").splitlines():
-                    line = line.strip().lower()
-                    if line:
-                        recent.add(line)
-            except Exception as e:
-                print(f"  [warn] Could not read {headlines_file}: {e}")
-    return recent
+STOPWORDS = set("""a an the and or but of in on at to for from by with as is are was were be been
+has have had it its this that these those after before over under into about amid against new says
+say said will could would may might not no how why what who when where than more most up out""".split())
 
 
 def normalize_headline(title: str) -> str:
-    """Normalize a headline for fuzzy duplicate matching."""
-    # Lowercase, strip punctuation, collapse whitespace
+    """Lowercase, strip punctuation, collapse whitespace."""
     t = re.sub(r"[^\w\s]", "", title.lower())
-    t = re.sub(r"\s+", " ", t).strip()
-    return t
+    return re.sub(r"\s+", " ", t).strip()
 
 
-def fetch_news(recent_headlines: set[str]) -> list[dict]:
-    """Fetch top headlines from RSS feeds, skipping recently-covered stories."""
+def keywords(title: str) -> set[str]:
+    """Content-word stems (first 5 chars) so 'murders'/'murderer' or 'Israel's'/'Israeli' match."""
+    return {w[:5] for w in normalize_headline(title).split() if w not in STOPWORDS and len(w) > 2}
+
+
+def is_similar(a: set[str], b: set[str]) -> bool:
+    # ponytail: keyword overlap only catches near-rewordings; the Claude selection step
+    # handles same-event-different-words repeats semantically.
+    shared = len(a & b)
+    return shared >= 3 and shared / max(1, min(len(a), len(b))) >= 0.5
+
+
+def get_recent_coverage() -> tuple[list[str], set[str]]:
+    """Headlines + HN ids covered in the last few episodes (by episode, not calendar day)."""
+    today = datetime.date.today().isoformat()
+    files = sorted(f for f in EPISODE_DIR.glob("*.headlines") if f.stem != today)[-LOOKBACK_EPISODES:]
+    titles, hn_ids = [], set()
+    for f in files:
+        for line in f.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("hn:"):
+                hn_ids.add(line[3:])
+            elif line:
+                titles.append(line)
+    return titles, hn_ids
+
+
+def fetch_feeds(urls: list[str], recent_kw: list[set[str]]) -> list[dict]:
+    """Fresh, non-repeat entries from RSS feeds."""
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=MAX_AGE_HOURS)
     stories = []
-    for url in NEWS_FEEDS:
+    for url in urls:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:4]:
-                title = entry.get("title", "")
-                norm = normalize_headline(title)
-
-                # Skip if we covered this (or something very similar) recently
-                if norm in recent_headlines:
+            if not feed.entries:
+                print(f"  [warn] No entries from {url} (status {feed.get('status', '?')})")
+            for entry in feed.entries[:ITEMS_PER_FEED]:
+                title = entry.get("title", "").strip()
+                published = entry.get("published_parsed") or entry.get("updated_parsed")
+                if not title:
                     continue
-                # Also skip if a close variant was covered (first 8 words match)
-                norm_prefix = " ".join(norm.split()[:8])
-                if any(norm_prefix and norm_prefix in rh for rh in recent_headlines):
+                if published and datetime.datetime(*published[:6], tzinfo=datetime.timezone.utc) < cutoff:
                     continue
-
-                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-                summary = re.sub(r"<[^>]+>", "", summary)[:500]
+                kw = keywords(title)
+                if any(is_similar(kw, r) for r in recent_kw):
+                    continue
+                summary = entry.get("summary", "") or entry.get("description", "")
+                summary = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", summary)).strip()[:600]
                 stories.append({
                     "source":  feed.feed.get("title", url),
                     "title":   title,
                     "summary": summary,
                     "link":    entry.get("link", ""),
-                    "norm":    norm,
+                    "kw":      kw,
                 })
         except Exception as e:
-            print(f"  [warn] News feed error {url}: {e}")
-
-    # Deduplicate within today's batch too
-    seen, unique = set(), []
-    for s in stories:
-        key = s["norm"][:60]
-        if key not in seen:
-            seen.add(key)
-            unique.append(s)
-    return unique[:MAX_NEWS_STORIES]
-
-
-def fetch_hn_comments(kid_ids: list, limit: int) -> list[str]:
-    """Fetch and clean the top-level comments for a HackerNews story."""
-    comments = []
-    for kid_id in kid_ids[:limit]:
-        try:
-            kid_url = f"https://hacker-news.firebaseio.com/v0/item/{kid_id}.json"
-            with urllib.request.urlopen(kid_url, timeout=5) as resp:
-                kid = json.loads(resp.read().decode("utf-8"))
-            if kid.get("dead") or kid.get("deleted"):
-                continue
-            text = kid.get("text", "")
-            if not text:
-                continue
-            # Strip HTML tags and decode common entities
-            text = re.sub(r"<[^>]+>", " ", text)
-            text = (text.replace("&#x27;", "'").replace("&quot;", '"')
-                        .replace("&amp;", "&").replace("&gt;", ">")
-                        .replace("&lt;", "<").replace("&#x2F;", "/"))
-            text = re.sub(r"\s+", " ", text).strip()
-            if text:
-                comments.append(text[:400])  # cap length per comment
-        except Exception as e:
-            print(f"  [warn] HN comment {kid_id} fetch error: {e}")
-            continue
-    return comments
-
-
-def fetch_hackernews() -> list[dict]:
-    """Fetch top stories from HackerNews via the public API (no auth needed)."""
-    stories = []
-    try:
-        url = "https://hacker-news.firebaseio.com/v0/topstories.json"
-        req = urllib.request.Request(url, headers={"User-Agent": "daily-podcast-bot/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            story_ids = json.loads(resp.read().decode("utf-8"))[:15]
-
-        for story_id in story_ids[:MAX_HACKERNEWS_STORIES]:
-            try:
-                story_url = f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
-                with urllib.request.urlopen(story_url, timeout=5) as resp:
-                    story = json.loads(resp.read().decode("utf-8"))
-
-                if story.get("type") not in ["story", "poll"]:
-                    continue
-                if story.get("dead") or story.get("deleted"):
-                    continue
-
-                # Pull the top few comments for discussion context
-                comments = fetch_hn_comments(story.get("kids", []), MAX_HN_COMMENTS)
-
-                stories.append({
-                    "source": "HackerNews",
-                    "title": story.get("title", ""),
-                    "summary": f"{story.get('score', 0)} points, {story.get('descendants', 0)} comments",
-                    "link": story.get("url", f"https://news.ycombinator.com/item?id={story_id}"),
-                    "comments": comments,
-                })
-            except Exception as e:
-                print(f"  [warn] HN story {story_id} fetch error: {e}")
-                continue
-    except Exception as e:
-        print(f"  [warn] HackerNews fetch error: {e}")
-
+            print(f"  [warn] Feed error {url}: {e}")
     return stories
 
 
-def build_prompt(news: list[dict], hn_stories: list[dict], date_str: str) -> str:
-    news_block = "\n\n".join(
-        f"SOURCE: {s['source']}\nHEADLINE: {s['title']}\nSUMMARY: {s['summary']}"
-        for s in news
-    )
+def hn_get(path: str, timeout: int = 5):
+    req = urllib.request.Request(f"https://hacker-news.firebaseio.com/v0/{path}.json",
+                                 headers={"User-Agent": "daily-podcast-bot/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def clean_hn_html(text: str) -> str:
+    text = html.unescape(re.sub(r"<[^>]+>", " ", text or ""))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def fetch_hn_comments(kid_ids: list, limit: int) -> list[str]:
+    """Top-level comments for a HackerNews story."""
+    comments = []
+    for kid_id in kid_ids[:limit * 2]:  # some will be dead/deleted
+        if len(comments) >= limit:
+            break
+        try:
+            kid = hn_get(f"item/{kid_id}")
+            if kid and not kid.get("dead") and not kid.get("deleted") and kid.get("text"):
+                comments.append(clean_hn_html(kid["text"])[:500])
+        except Exception as e:
+            print(f"  [warn] HN comment {kid_id} fetch error: {e}")
+    return comments
+
+
+def fetch_hackernews(recent_kw: list[set[str]], recent_ids: set[str]) -> list[dict]:
+    """Top HN stories, minus ones we've already covered."""
+    stories = []
+    try:
+        for story_id in hn_get("topstories", timeout=10)[:HN_CANDIDATES]:
+            try:
+                if str(story_id) in recent_ids:
+                    continue
+                story = hn_get(f"item/{story_id}")
+                if not story or story.get("type") not in ("story", "poll") or story.get("dead") or story.get("deleted"):
+                    continue
+                kw = keywords(story.get("title", ""))
+                if any(is_similar(kw, r) for r in recent_kw):
+                    continue
+                stories.append({
+                    "id":      str(story_id),
+                    "source":  "HackerNews",
+                    "title":   story.get("title", ""),
+                    "summary": f"{story.get('score', 0)} points, {story.get('descendants', 0)} comments",
+                    "text":    clean_hn_html(story.get("text", ""))[:1000],
+                    "link":    story.get("url", f"https://news.ycombinator.com/item?id={story_id}"),
+                    "kids":    story.get("kids", []),
+                    "kw":      kw,
+                })
+            except Exception as e:
+                print(f"  [warn] HN story {story_id} fetch error: {e}")
+    except Exception as e:
+        print(f"  [warn] HackerNews fetch error: {e}")
+    return stories
+
+
+def fetch_dad_joke() -> str:
+    try:
+        req = urllib.request.Request("https://icanhazdadjoke.com/",
+                                     headers={"Accept": "application/json", "User-Agent": "daily-podcast-bot/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode("utf-8"))["joke"].strip()
+    except Exception as e:
+        print(f"  [warn] Dad joke fetch error: {e}")
+        return ""
+
+
+def numbered(items: list[dict]) -> str:
+    return "\n".join(f"[{i}] ({s['source']}) {s['title']} | {s['summary'][:200]}" for i, s in enumerate(items))
+
+
+def pick_stories(client, news: list[dict], ai: list[dict], hn: list[dict], recent_titles: list[str]) -> dict:
+    """Ask Claude to choose today's stories, skipping anything already covered."""
+    prompt = f"""You are the producer of a daily news podcast. Choose today's stories from the numbered candidates.
+
+ALREADY COVERED IN RECENT EPISODES (do NOT pick the same event again, even if worded differently,
+unless there is a major new development, like a verdict, a death toll, a resolution):
+{chr(10).join(recent_titles) or "(none)"}
+
+=== NEWS CANDIDATES ===
+{numbered(news)}
+
+=== AI CANDIDATES ===
+{numbered(ai)}
+
+=== HACKERNEWS CANDIDATES (in rank order) ===
+{numbered(hn)}
+
+Pick:
+- "news": the {TOP_NEWS_STORIES} most significant news stories. Each must be a DIFFERENT event. Favor stories
+  several outlets are covering, and real consequence over curiosity pieces. Mix world, US, and tech if warranted.
+- "ai": up to {MAX_AI_STORIES} genuinely notable AI stories (model launches, major research, policy, big business moves).
+  Favor official lab announcements. Skip tutorials, minor product tweaks, and duplicates of the same event.
+- "hn": the {HN_STORIES} most interesting HackerNews stories for a tech-savvy listener; skip any that duplicate a news/AI pick.
+
+Reply with ONLY JSON, no prose: {{"news": [indices], "ai": [indices], "hn": [indices]}}"""
+    try:
+        msg = client.messages.create(model=MODEL, max_tokens=200, messages=[{"role": "user", "content": prompt}])
+        picks = json.loads(re.search(r"\{.*\}", msg.content[0].text, re.S).group(0))
+    except Exception as e:
+        print(f"  [warn] Story selection failed ({e}); falling back to feed order")
+        picks = {}
+
+    def choose(key, pool, n):
+        idx = [i for i in picks.get(key, []) if isinstance(i, int) and 0 <= i < len(pool)]
+        return [pool[i] for i in dict.fromkeys(idx)][:n] or pool[:n]
+
+    return {"news": choose("news", news, TOP_NEWS_STORIES),
+            "ai":   choose("ai", ai, MAX_AI_STORIES),
+            "hn":   choose("hn", hn, HN_STORIES)}
+
+
+def related_coverage(story: dict, pool: list[dict]) -> list[dict]:
+    """Other outlets' takes on the same event, for a deeper segment."""
+    return [s for s in pool if s is not story and len(story["kw"] & s["kw"]) >= 2][:3]
+
+
+def build_prompt(news: list[dict], news_pool: list[dict], ai: list[dict], hn: list[dict],
+                 dad_joke: str, date_str: str) -> str:
+    news_block = ""
+    for i, s in enumerate(news, 1):
+        news_block += f"\nTOP STORY {i}\nSOURCE: {s['source']}\nHEADLINE: {s['title']}\nSUMMARY: {s['summary']}\n"
+        for r in related_coverage(s, news_pool):
+            news_block += f"  ALSO REPORTED BY {r['source']}: {r['title']} | {r['summary']}\n"
+
+    ai_block = "\n".join(f"SOURCE: {s['source']}\nHEADLINE: {s['title']}\nSUMMARY: {s['summary']}\n" for s in ai) \
+        or "(no notable AI news today; skip this segment gracefully)"
 
     hn_block = ""
-    if hn_stories:
-        hn_block = "\n\n--- HackerNews Top Stories ---\n"
-        for s in hn_stories:
-            hn_block += f"  TITLE: {s['title']}\n  STATS: {s['summary']}\n"
-            comments = s.get("comments", [])
-            if comments:
-                hn_block += "  TOP COMMENTS FROM THE DISCUSSION:\n"
-                for c in comments:
-                    hn_block += f"    - {c}\n"
-            hn_block += "\n"
+    for s in hn:
+        hn_block += f"\nTITLE: {s['title']}\nLINK: {s['link']}\nSTATS: {s['summary']}\n"
+        if s.get("text"):
+            hn_block += f"POST TEXT: {s['text']}\n"
+        if s.get("comments"):
+            hn_block += "TOP COMMENTS:\n" + "".join(f"  - {c}\n" for c in s["comments"])
 
-    return f"""You are a warm, witty, and knowledgeable podcast host creating a personal daily briefing for {date_str}.
+    joke_line = f'DAD JOKE OF THE DAY: "{dad_joke}"' if dad_joke else \
+        "DAD JOKE OF THE DAY: (none supplied; tell a classic, clean, groan-worthy dad joke yourself)"
 
-Your listener wants a CONVERSATIONAL, engaging podcast covering:
-1. Top world news & tech stories from official sources
-2. Trending stories on HackerNews
+    return f"""You are {HOST_NAME}, the warm, witty, and sharp host of a personal daily briefing podcast. Today is {date_str}.
 
-CONTENT PROVIDED:
-=== NEWS STORIES (including official AI company blogs) ===
+=== TODAY'S TOP NEWS STORIES ===
 {news_block}
+=== AI NEWS ===
+{ai_block}
+
+=== HACKERNEWS PICKS ===
 {hn_block}
+{joke_line}
 
-INSTRUCTIONS:
-- Write the FULL spoken script — everything the host says, word for word
-- Tone: friendly, conversational, like a smart friend catching you up — not stiff or robotic
-- Use natural spoken language: contractions, rhetorical questions, brief jokes where fitting
-- Structure:
-    • Punchy cold open / hook
-    • Introduce yourself as the host and your name is Walter
-    • Quick "what we're covering today"
-    • World news segment
-    • Tech news + AI company updates
-    • HackerNews highlights
-    • Brief sign-off
-- Do NOT include ANY section headers, markers, hashtags, or stage directions — just the spoken words
-- Never use ##, #, dashes, or any formatting — pure spoken dialogue only
-- If you naturally want to transition between topics, use conversational bridges like "Now let's talk about..." instead of markers
-- NEVER mention or reference how long the episode is, how many minutes it will take, or any time estimates — do not say things like "over the next 20 minutes" or "in the next few minutes"
+STRUCTURE:
+  • A punchy cold open that hooks the listener with the biggest story
+  • Introduce yourself by name ({HOST_NAME}) and preview the three top stories
+  • The dad joke of the day: set it up, deliver it, and give it a good-natured groan or reaction
+  • Top story deep dives: ONE AT A TIME, each one a real segment
+  • AI news roundup
+  • HackerNews: three deep dives
+  • A brief sign-off
 
-DEPTH REQUIREMENTS (very important — do not write a thin, rushed script):
-- The complete script MUST be at least 1,800 words, and ideally 2,000 to 2,400 words. This is a firm floor — keep writing until you reach it.
-- Spend real time on EACH story. For every story, don't just state the headline — explain what happened, why it matters, who's affected, and add your own brief context, analysis, or reaction. Aim for roughly 3 to 5 substantial spoken sentences per story at minimum.
-- Draw connections between related stories, pose rhetorical questions, and give the listener something to think about — this is what fills out the runtime naturally.
-- Do NOT summarize everything quickly and wrap up early. A rushed 5-minute episode is a failure. Treat every story as worth a proper, unhurried discussion.
-- For HackerNews, don't just list titles — explain what each project or discussion is about and why the tech community cares. Use the TOP COMMENTS provided to convey what people are actually saying: the debates, the praise, the skepticism, the interesting angles. Paraphrase the gist of the discussion in your own words rather than quoting usernames.
-- Pay special attention to announcements from Anthropic, OpenAI, and Perplexity — give these extra depth, don't bury them.
-- Connect stories where relevant; add brief context or your take.
+TOP STORIES (the heart of the show, go deep): for each of the three, cover what happened, the backstory
+that got us here, who is affected and how, the competing perspectives (use the ALSO REPORTED BY material
+to show how different outlets frame it), and what to watch for next. Roughly 350 to 450 spoken words each.
 
-Remember: the word-count target above is an instruction to YOU for writing — never say the word count or any length/time reference out loud in the script.
+AI NEWS: explain each item plainly, why it matters, and how it fits the competitive landscape.
+Give official lab announcements (Anthropic, OpenAI, Google, and others) the most depth.
 
-Write the full script now, and keep going until you've covered every story with real depth and hit the word-count floor:"""
+HACKERNEWS (go deep): for each of the three, explain what the project or article actually is, why the tech
+crowd cares, and what the discussion is saying: the debates, praise, skepticism, and interesting tangents
+from the TOP COMMENTS. Paraphrase; never quote usernames. Roughly 200 to 300 spoken words each.
+
+STYLE:
+- Write the FULL spoken script, word for word. Friendly and conversational, like a smart friend catching
+  you up: contractions, rhetorical questions, brief wit where fitting, conversational bridges between segments.
+- Pure spoken words only: no headers, markers, hashtags, bullet points, stage directions, or "---" separators.
+- Never mention the episode's length, time, or word count.
+- The full script should be 2,000 to 2,600 words. Don't rush or wrap up early.
+
+Write the full script now:"""
 
 
-def generate_script(news: list[dict], hn_stories: list[dict], date_str: str) -> str:
-    """Call Claude Haiku to write the podcast script."""
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(news, hn_stories, date_str)
-
-    print("  Generating script with Claude Haiku...")
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=8192,
-        messages=[{"role": "user", "content": prompt}],
-    )
+def generate_script(client, prompt: str) -> str:
+    print(f"  Generating script with {MODEL}...")
+    message = client.messages.create(model=MODEL, max_tokens=8192,
+                                     messages=[{"role": "user", "content": prompt}])
     return message.content[0].text
-
 
 async def text_to_speech(script: str, output_path: Path):
     """Convert script to MP3 using edge-tts with robust error handling."""
@@ -408,7 +473,7 @@ def main():
     date_str = today.strftime("%A, %B %-d, %Y")
     ep_slug  = today.strftime("%Y-%m-%d")
     ep_title = f"Daily Briefing — {date_str}"
-    ep_desc  = f"World news, tech, and AI company updates from official sources and HackerNews for {date_str}."
+    ep_desc  = f"Top stories, AI news, HackerNews deep dives, and a dad joke for {date_str}."
 
     EPISODE_DIR.mkdir(exist_ok=True)
     mp3_path = EPISODE_DIR / f"{ep_slug}.mp3"
@@ -421,35 +486,45 @@ def main():
     print(f"  Generating episode: {ep_title}")
     print(f"{'='*50}\n")
 
-    print("[1/5] Checking recent episodes for duplicate stories...")
-    recent_headlines = get_recent_headlines()
-    print(f"  Found {len(recent_headlines)} headlines from last {LOOKBACK_DAYS} days")
+    print("[1/6] Checking recent episodes for repeat stories...")
+    recent_titles, recent_hn_ids = get_recent_coverage()
+    recent_kw = [keywords(t) for t in recent_titles]
+    print(f"  {len(recent_titles)} stories covered in the last {LOOKBACK_EPISODES} episodes")
 
-    print("[2/5] Fetching news...")
-    news = fetch_news(recent_headlines)
-    print(f"  Got {len(news)} fresh news stories")
+    print("[2/6] Fetching news, AI news, HackerNews, and a dad joke...")
+    news_pool = fetch_feeds(NEWS_FEEDS, recent_kw)
+    ai_pool   = fetch_feeds(AI_FEEDS, recent_kw)
+    hn_pool   = fetch_hackernews(recent_kw, recent_hn_ids)
+    dad_joke  = fetch_dad_joke()
+    print(f"  Candidates: {len(news_pool)} news, {len(ai_pool)} AI, {len(hn_pool)} HN")
 
-    print("[3/5] Fetching HackerNews...")
-    hn_stories = fetch_hackernews()
-    print(f"  Got {len(hn_stories)} HackerNews stories")
+    print("[3/6] Picking today's stories...")
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    picks = pick_stories(client, news_pool, ai_pool, hn_pool, recent_titles)
+    for key, items in picks.items():
+        for s in items:
+            print(f"  {key:>4}: {s['title']}")
+    for s in picks["hn"]:
+        s["comments"] = fetch_hn_comments(s["kids"], MAX_HN_COMMENTS)
 
-    # Save today's headlines so future runs can skip them
-    headlines_file = EPISODE_DIR / f"{ep_slug}.headlines"
-    all_titles = [normalize_headline(s["title"]) for s in news]
-    headlines_file.write_text("\n".join(all_titles), encoding="utf-8")
+    # Record only what we actually cover, so future runs skip it
+    covered = [s["title"] for k in ("news", "ai", "hn") for s in picks[k]]
+    covered += [f"hn:{s['id']}" for s in picks["hn"]]
+    (EPISODE_DIR / f"{ep_slug}.headlines").write_text("\n".join(covered) + "\n", encoding="utf-8")
 
-    print("[4/5] Writing podcast script...")
-    script = generate_script(news, hn_stories, date_str)
+    print("[4/6] Writing podcast script...")
+    prompt = build_prompt(picks["news"], news_pool, picks["ai"], picks["hn"], dad_joke, date_str)
+    script = generate_script(client, prompt)
     word_count = len(script.split())
     print(f"  Script: {word_count} words (~{word_count // 140} min)")
-
     (EPISODE_DIR / f"{ep_slug}.txt").write_text(script)
 
-    print("[5/5] Converting to audio...")
+    print("[5/6] Converting to audio...")
     asyncio.run(text_to_speech(script, mp3_path))
     size_mb = mp3_path.stat().st_size / 1_000_000
     print(f"  Audio: {mp3_path} ({size_mb:.1f} MB)")
 
+    print("[6/6] Updating RSS...")
     update_rss(mp3_path, ep_title, ep_desc, datetime.datetime.now())
     print(f"\n✅ Done! Episode ready: {mp3_path}")
 
