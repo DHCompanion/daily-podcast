@@ -102,9 +102,9 @@ edge-tts --list-voices | grep en-US
 ```
 
 Good conversational picks:
-- `en-US-AvaNeural` — natural female (current default; the Multilingual variant is too slow)
+- `en-US-AndrewNeural` — relaxed male (current default; Multilingual variants are too slow)
+- `en-US-AvaNeural` — natural female
 - `en-US-BrianMultilingualNeural` — warm male
-- `en-US-AndrewMultilingualNeural` — relaxed male
 
 ---
 

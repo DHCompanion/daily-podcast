@@ -30,8 +30,8 @@ PODCAST_DESCRIPTION = "A personal daily news podcast covering world news, tech, 
 PODCAST_AUTHOR      = "Me"
 BASE_URL            = os.environ.get("PODCAST_BASE_URL", "https://YOUR-USERNAME.github.io/daily-podcast")
 
-HOST_NAME = "Nora"
-TTS_VOICE = "en-US-AvaNeural"  # Multilingual variant sounds the same but is ~3x slower and times out
+HOST_NAME = "Andrew"
+TTS_VOICE = "en-US-AndrewNeural"  # Multilingual variants are ~3x slower and time out
 TTS_RATE  = "+5%"
 MODEL     = "claude-haiku-4-5-20251001"
 
@@ -303,18 +303,14 @@ def build_prompt(news: list[dict], news_pool: list[dict], ai: list[dict], hn: li
 {hn_block}
 {joke_line}
 
-STRUCTURE:
-  • A punchy cold open that hooks the listener with the biggest story
-  • Introduce yourself by name ({HOST_NAME}) and preview the three top stories
-  • The dad joke of the day: set it up, deliver it, and give it a good-natured groan or reaction
-  • Top story deep dives: ONE AT A TIME, each one a real segment
-  • AI news roundup
-  • HackerNews: three deep dives
-  • A brief sign-off
+FLOW (a guide, not a checklist; the listener should never hear the seams):
+  Open by talking about the biggest story like you just can't wait to tell someone, then say who you are
+  ({HOST_NAME}) and what else is coming up. Work through the three top stories, then the AI news, then the
+  HackerNews picks, and close with the dad joke as the very last thing before you say goodbye.
 
-TOP STORIES (the heart of the show, go deep): for each of the three, cover what happened, the backstory
-that got us here, who is affected and how, the competing perspectives (use the ALSO REPORTED BY material
-to show how different outlets frame it), and what to watch for next. Roughly 350 to 450 spoken words each.
+TOP STORIES (the heart of the show, go deep): for each of the three, tell the story: what happened, how we
+got here, who it affects, how different outlets are framing it (use the ALSO REPORTED BY material), and what
+to watch next. Roughly 350 to 450 spoken words each.
 
 AI NEWS: explain each item plainly, why it matters, and how it fits the competitive landscape.
 Give official lab announcements (Anthropic, OpenAI, Google, and others) the most depth.
@@ -323,9 +319,16 @@ HACKERNEWS (go deep): for each of the three, explain what the project or article
 crowd cares, and what the discussion is saying: the debates, praise, skepticism, and interesting tangents
 from the TOP COMMENTS. Paraphrase; never quote usernames. Roughly 200 to 300 spoken words each.
 
+THE DAD JOKE (the ending): it's {HOST_NAME}'s own joke, not something read off a card. Never call it
+"the dad joke of the day" or announce a segment. Tee it up naturally, deliver it with full confidence,
+then own it: stand by it proudly, defend it, or groan at yourself. Then a quick, warm goodbye.
+
 STYLE:
-- Write the FULL spoken script, word for word. Friendly and conversational, like a smart friend catching
-  you up: contractions, rhetorical questions, brief wit where fitting, conversational bridges between segments.
+- Write the FULL spoken script, word for word, as one person talking to a friend over coffee, not
+  presenting a list. Let stories flow into each other with real connective thought ("which actually ties
+  into...", "okay, switching gears completely..."), share your own reactions and opinions, ask the listener
+  questions, and vary sentence length. Never march through items like "First... Second... Next up...".
+- Never use segment labels or announce sections ("AI news roundup", "HackerNews deep dive number two").
 - Pure spoken words only: no headers, markers, hashtags, bullet points, stage directions, or "---" separators.
 - Never mention the episode's length, time, or word count.
 - The full script should be 2,000 to 2,600 words. Don't rush or wrap up early.
