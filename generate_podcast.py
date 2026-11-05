@@ -85,6 +85,9 @@ has have had it its this that these those after before over under into about ami
 say said will could would may might not no how why what who when where than more most up out""".split())
 
 
+JOKE_TOKEN = "[[DAD_JOKE]]"
+
+
 def normalize_headline(title: str) -> str:
     """Lowercase, strip punctuation, collapse whitespace."""
     t = re.sub(r"[^\w\s]", "", title.lower())
@@ -104,18 +107,18 @@ def is_similar(a: set[str], b: set[str]) -> bool:
 
 
 def get_recent_coverage() -> tuple[list[str], set[str]]:
-    """Headlines + HN ids covered in the last few episodes (by episode, not calendar day)."""
+    """Headlines + "hn:<id>"/"joke:<id>" tokens from the last few episodes (by episode, not calendar day)."""
     today = datetime.date.today().isoformat()
     files = sorted(f for f in EPISODE_DIR.glob("*.headlines") if f.stem != today)[-LOOKBACK_EPISODES:]
-    titles, hn_ids = [], set()
+    titles, ids = [], set()
     for f in files:
         for line in f.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if line.startswith("hn:"):
-                hn_ids.add(line[3:])
+            if line.startswith(("hn:", "joke:")):
+                ids.add(line)
             elif line:
                 titles.append(line)
-    return titles, hn_ids
+    return titles, ids
 
 
 def fetch_feeds(urls: list[str], recent_kw: list[set[str]]) -> list[dict]:
@@ -184,7 +187,7 @@ def fetch_hackernews(recent_kw: list[set[str]], recent_ids: set[str]) -> list[di
     try:
         for story_id in hn_get("topstories", timeout=10)[:HN_CANDIDATES]:
             try:
-                if str(story_id) in recent_ids:
+                if f"hn:{story_id}" in recent_ids:
                     continue
                 story = hn_get(f"item/{story_id}")
                 if not story or story.get("type") not in ("story", "poll") or story.get("dead") or story.get("deleted"):
@@ -209,15 +212,30 @@ def fetch_hackernews(recent_kw: list[set[str]], recent_ids: set[str]) -> list[di
     return stories
 
 
-def fetch_dad_joke() -> str:
-    try:
-        req = urllib.request.Request("https://icanhazdadjoke.com/",
-                                     headers={"Accept": "application/json", "User-Agent": "daily-podcast-bot/1.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return json.loads(resp.read().decode("utf-8"))["joke"].strip()
-    except Exception as e:
-        print(f"  [warn] Dad joke fetch error: {e}")
-        return ""
+def fetch_dad_joke(seen: set[str]) -> tuple[str, str]:
+    """(id, joke) from icanhazdadjoke.com, skipping recently used ones. ("", "") if the site is down."""
+    for attempt in range(5):
+        try:
+            req = urllib.request.Request("https://icanhazdadjoke.com/",
+                                         headers={"Accept": "application/json", "User-Agent": "daily-podcast-bot/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            if f"joke:{data['id']}" not in seen:
+                return data["id"], data["joke"].strip()
+        except Exception as e:
+            print(f"  [warn] Dad joke fetch error: {e}")
+    return "", ""
+
+
+def insert_joke(script: str, joke: str) -> str:
+    """Put the website's joke into the script verbatim, so Claude never rewrites or invents it."""
+    if not joke:
+        return script.replace(JOKE_TOKEN, "")
+    if JOKE_TOKEN in script:
+        return script.replace(JOKE_TOKEN, joke, 1).replace(JOKE_TOKEN, "")
+    # Token missing: tell it right before the final goodbye paragraph
+    head, sep, tail = script.rstrip().rpartition("\n\n")
+    return f"{head}\n\nOne more thing before I go, here's a dad joke for you. {joke}\n\n{tail}" if sep else f"{script}\n\n{joke}"
 
 
 def numbered(items: list[dict]) -> str:
@@ -289,8 +307,12 @@ def build_prompt(news: list[dict], news_pool: list[dict], ai: list[dict], hn: li
         if s.get("comments"):
             hn_block += "TOP COMMENTS:\n" + "".join(f"  - {c}\n" for c in s["comments"])
 
-    joke_line = f'DAD JOKE OF THE DAY: "{dad_joke}"' if dad_joke else \
-        "DAD JOKE OF THE DAY: (none supplied; tell a classic, clean, groan-worthy dad joke yourself)"
+    joke_rules = f"""THE DAD JOKE (the ending): tee it up naturally in a sentence or two, then write the exact
+placeholder {JOKE_TOKEN} on its own line. The joke's text is inserted there word for word, so do NOT write,
+paraphrase, retell, or explain the joke yourself, and never make up a different joke. After the placeholder,
+react briefly (groan at yourself, or stand by it proudly), then a quick, warm goodbye.""" if dad_joke else \
+        "THE DAD JOKE: none today. Do not tell or invent any joke; just end with a quick, warm goodbye."
+    joke_line = f'DAD JOKE (from icanhazdadjoke.com, for your reference only): "{dad_joke}"' if dad_joke else ""
 
     return f"""You are {HOST_NAME}, the warm, witty, and sharp host of a personal daily briefing podcast. Today is {date_str}.
 
@@ -306,7 +328,7 @@ def build_prompt(news: list[dict], news_pool: list[dict], ai: list[dict], hn: li
 FLOW (a guide, not a checklist; the listener should never hear the seams):
   Open by talking about the biggest story like you just can't wait to tell someone, then say who you are
   ({HOST_NAME}) and what else is coming up. Work through the three top stories, then the AI news, then the
-  HackerNews picks, and close with the dad joke as the very last thing before you say goodbye.
+  HackerNews picks, and close with the dad joke (if one is provided) as the very last thing before you say goodbye.
 
 TOP STORIES (the heart of the show, go deep): for each of the three, tell the story: what happened, how we
 got here, who it affects, how different outlets are framing it (use the ALSO REPORTED BY material), and what
@@ -319,9 +341,7 @@ HACKERNEWS (go deep): for each of the three, explain what the project or article
 crowd cares, and what the discussion is saying: the debates, praise, skepticism, and interesting tangents
 from the TOP COMMENTS. Paraphrase; never quote usernames. Roughly 200 to 300 spoken words each.
 
-THE DAD JOKE (the ending): it's {HOST_NAME}'s own joke, not something read off a card. Never call it
-"the dad joke of the day" or announce a segment. Tee it up naturally, deliver it with full confidence,
-then own it: stand by it proudly, defend it, or groan at yourself. Then a quick, warm goodbye.
+{joke_rules}
 
 STYLE:
 - Write the FULL spoken script, word for word, as one person talking to a friend over coffee, not
@@ -463,15 +483,16 @@ def main():
     print(f"{'='*50}\n")
 
     print("[1/6] Checking recent episodes for repeat stories...")
-    recent_titles, recent_hn_ids = get_recent_coverage()
+    recent_titles, recent_ids = get_recent_coverage()
     recent_kw = [keywords(t) for t in recent_titles]
     print(f"  {len(recent_titles)} stories covered in the last {LOOKBACK_EPISODES} episodes")
 
     print("[2/6] Fetching news, AI news, HackerNews, and a dad joke...")
     news_pool = fetch_feeds(NEWS_FEEDS, recent_kw)
     ai_pool   = fetch_feeds(AI_FEEDS, recent_kw)
-    hn_pool   = fetch_hackernews(recent_kw, recent_hn_ids)
-    dad_joke  = fetch_dad_joke()
+    hn_pool   = fetch_hackernews(recent_kw, recent_ids)
+    joke_id, dad_joke = fetch_dad_joke(recent_ids)
+    print(f"  Dad joke: {dad_joke or '(site unavailable, skipping)'}")
     print(f"  Candidates: {len(news_pool)} news, {len(ai_pool)} AI, {len(hn_pool)} HN")
 
     print("[3/6] Picking today's stories...")
@@ -486,11 +507,12 @@ def main():
     # Record only what we actually cover, so future runs skip it
     covered = [s["title"] for k in ("news", "ai", "hn") for s in picks[k]]
     covered += [f"hn:{s['id']}" for s in picks["hn"]]
+    covered += [f"joke:{joke_id}"] if joke_id else []
     (EPISODE_DIR / f"{ep_slug}.headlines").write_text("\n".join(covered) + "\n", encoding="utf-8")
 
     print("[4/6] Writing podcast script...")
     prompt = build_prompt(picks["news"], news_pool, picks["ai"], picks["hn"], dad_joke, date_str)
-    script = generate_script(client, prompt)
+    script = insert_joke(generate_script(client, prompt), dad_joke)
     word_count = len(script.split())
     print(f"  Script: {word_count} words (~{word_count // 140} min)")
     (EPISODE_DIR / f"{ep_slug}.txt").write_text(script)
