@@ -1,0 +1,75 @@
+# Andrew's Daily Briefing - Monday, November 16, 2026
+
+Okay, so I've got to start with this absolutely wild story that's still unfolding, and I genuinely can't believe how much has happened in just the last few weeks. You know how we all got blindsided by the whole Nvidia scandal earlier this year? Well, it turns out that's not even close to being over. In fact, it's getting worse, and Congress is now in full panic mode.
+
+I'm Andrew, and this is your daily briefing. Today we're talking about a Chinese spy connected to Nvidia's now-departed CEO, a massive satellite failure for Amazon, Russia's latest mind games with Europe, what's happening inside Anthropic right before what could be the biggest IPO in history, and some genuinely impressive developments in space and AI. Let's dig in.
+
+So here's what we know about the Nvidia situation, and I want to walk you through this carefully because it's genuinely complicated. A suspected Chinese spy who was linked to Jensen Huang, Nvidia's former CEO, apparently left the country sometime in 2025. The concern that's got everyone losing their minds is whether advanced AI chips—the really restricted stuff that the US doesn't want China to have—ended up over there anyway, despite all these export restrictions we've had in place.
+
+Now, how did we get here? Well, Jensen Huang was basically the face of Nvidia, right? He built the company into the absolute powerhouse of AI chips. But apparently, there were counterintelligence concerns serious enough that they've forced him out, and now we're learning about connections to what looks like actual espionage. The Verge is reporting that Congress has absolutely had it. Both Democrats and Republicans—and I mean both sides of the aisle here—are now demanding that Huang and other Nvidia leadership come testify in front of Congress. They want to know what happened, how it happened, and whether American national security got compromised.
+
+On the policy side, lawmakers are looking at tightening export rules on AI chips even further. We already have pretty strict restrictions, but apparently that's not enough. The fear is that if the most advanced chips are ending up in the hands of China, America loses its technological edge in the most important domain of the next decade. This affects everybody, honestly. It affects national security, it affects the balance of power globally, and it raises serious questions about corporate oversight and how we're protecting sensitive technology.
+
+What to watch: We're going to see those congressional hearings, and they're probably going to be intense. We'll also be watching what happens with export control enforcement and whether new legislation actually passes. This is still developing.
+
+Okay, switching gears completely to Europe, and this one is genuinely concerning in a different way. Russia has been stalling talks about Ukraine and instead proposing something pretty clever and pretty sinister at the same time. They're offering individual nonaggression pacts to European nations, essentially trying to peel away countries from NATO's collective defense structure.
+
+Here's the play: instead of negotiating with NATO as a unified alliance, Russia's trying to splinter it by making bilateral deals with individual countries. It's a classic divide-and-conquer strategy. And honestly? If it works, it fundamentally changes the security architecture of Europe. Collective defense—that's the whole point of NATO. Article 5 says an attack on one is an attack on all. But if countries start making individual deals with Moscow, that entire system falls apart. Russia's basically saying, "Hey, do your own thing, stay out of Ukraine, and we're cool." But once you've broken the alliance? Well, then there's nothing stopping Russia from doing whatever it wants.
+
+Al Jazeera is framing this as Russia's explicit strategy to collapse NATO. And I think that's probably not hyperbole. The timing here matters too, because we're in this phase where Ukraine's fighting continues, and there's genuine war fatigue in Europe. Some countries are more skeptical than others about continued support. So Russia's essentially fishing where the troubled waters are. They're identifying the most vulnerable members and making them offers that are hard to refuse on the surface.
+
+What to watch: Are we going to see any European nations actually break ranks and start negotiating bilaterally with Russia? That would be the moment where everything changes. And will NATO respond by reinforcing the alliance? We might also see moves to strengthen military commitments to make these individual deals less attractive.
+
+And then there's this thing that honestly kind of flew under the radar for a lot of people, but it's a pretty big deal for Amazon and the entire space industry. United Launch Alliance—that's ULA, the company that's been around for like twenty years and has never failed a mission—just had their first failure. They were supposed to launch forty Amazon Leo satellites, which is Amazon's attempt to compete with SpaceX's Starlink. And they didn't make it.
+
+So here's the context. Amazon's been trying to build out this massive constellation of satellites to provide global broadband, kind of like Starlink. But getting satellites to orbit is hard and expensive, and you need a reliable launch provider. SpaceX has really been the dominant player here, especially with Starlink. Amazon's been trying to catch up, but they haven't been able to get enough of their satellites into space yet to really challenge Starlink. The Verge is reporting that this ULA failure is a major setback for Amazon's plans.
+
+The significance here goes beyond just Amazon though. ULA's been this incredibly reliable option in the launch market, and this failure suggests that nobody's immune to catastrophic problems. It also means Amazon's timeline for deploying Leo probably just got set back significantly. And in the incredibly competitive world of satellite internet, delays matter. SpaceX gets further ahead.
+
+What to watch: The investigation into what exactly went wrong with the Vulcan rocket, whether ULA can bounce back and maintain customer confidence, and whether this impacts Amazon's long-term plans for competing in the space internet market.
+
+Alright, so on the AI side, there's a lot happening, and some of it's genuinely dramatic. Let's start with Nvidia because honestly, the soap opera just keeps going. We already talked about the spy scandal and Jensen Huang being forced out, but now there are rumors—and these are just rumors, so take them with salt—that Huang might be plotting a return to the CEO role. Like, he was supposedly trying to find a path back. I don't know how serious this is, but it tells you something about the chaos inside the company right now and maybe about how much control Huang had before.
+
+But here's what I think is actually more important: the broader question of what happens to Nvidia now. The company's been synonymous with AI for the last few years. They've made the chips that power basically everything. But now there's this cloud of counterintelligence concerns, there's Congressional oversight coming, there's regulatory tightening on the horizon. It's a lot of uncertainty for a company that was supposed to be this unstoppable juggernaut.
+
+Then there's Anthropic, and this is wild because it's kind of the inverse problem. Anthropic's about to go public in what could be the largest IPO in history, and their CEO Dario Amodei just admitted on the record that there's "huge uncertainty about what's going to happen next year." Like, they're about to ask public markets for basically unlimited money right before admitting they're not sure their business model actually works.
+
+Here's the reality: Anthropic has committed to nearly nine hundred and one billion dollars in compute costs. That's just insanely expensive. The question is whether the revenue from their AI services and products can actually justify that level of spending. And right now, nobody knows the answer. Amodei even called buying compute "the deepest business dilemma" his company faces. Which is code for "we're spending more money than we know how to spend wisely, and we're hoping AI scales better and makes more money than we expect."
+
+The IPO is meant to provide a financial buffer against that uncertainty. It's basically the company saying, "Trust us, give us a ton of money, and we'll figure this out." Whether public investors actually buy that pitch remains to be seen. This IPO is going to be watched incredibly closely because it's kind of a referendum on whether the AI industry's growth can actually justify these astronomical costs.
+
+Congress wanting to tighten AI chip export rules—which again, is a direct response to the Nvidia scandal—this also affects Anthropic indirectly because it constrains supply of the chips they need. So you've got Anthropic trying to secure massive compute resources, but the government's now trying to restrict the supply of the best chips. It's a perfect storm of constraint right when they're about to go public.
+
+Okay, so over on HackerNews, the tech community is obsessing over a few things that I think are actually worth your attention.
+
+First up, SpaceX just caught the Starship. Like, they actually caught it. The upper stage booster came back down, and they caught it with these mechanical arms. This is huge. I mean, people are using words like "dawn of a new era" because they're not being hyperbolic. Here's why this matters: the Space Shuttle was technically reusable, but it required so much expensive refurbishment between flights that the whole economics fell apart. Launch cadence was limited. It didn't really work as a system.
+
+But if SpaceX can actually make Starship fully reusable and catch it and launch it again and catch it again, the economics of spaceflight change fundamentally. Suddenly, getting payloads to orbit becomes dramatically cheaper. And cheap space access opens up entirely new industries and possibilities. The comments are full of engineers who seem genuinely impressed by this achievement, talking about how this has been ten-plus years in the making. There's also this wonderful detail where SpaceX wrote "don't panic" on the fuselage above the S42 badge, which is such a Hitchhiker's Guide reference and just shows the personality of these teams.
+
+The technical discussions in the comments get into the weeds about heat shield durability, mass fractions, whether they could have caught both boosters if they'd loaded more propellant, all that good stuff. But the consensus is clear: this is a genuine milestone. Whether it leads to sustainable, rapid reusability remains to be seen, but the milestone itself is real.
+
+Then there's this absolutely wild story about how a Microsoft 365 outage led to chlorine gas poisoning at a hotel in Germany. And here's where the HackerNews community gets really interesting because they're not actually blaming Microsoft, and that surprised me.
+
+Here's what happened: a hotel's chlorination system had a technical defect that caused it to overdose the pool area with chlorine. The system is supposed to send out email alerts when there's a problem. But those emails couldn't be sent because Microsoft 365 was having an outage. So nobody got the alert, and fifteen guests got exposed to chlorine gas. About four had to go to the hospital.
+
+Now, you'd think the HackerNews crowd would just dunk on Microsoft, right? But instead, they're pretty harsh on the hotel. The consensus in the comments is: if your safety system—like actual physical safety that prevents people from getting hurt—depends entirely on a cloud service with no backup, you've already failed. That's a design problem. Cloud services go down. It's not a matter of if, it's a matter of when. And if your critical safety relies on it, you should have redundant systems, local failsafes, multiple notification paths, all that stuff.
+
+There's this great comment about how the hotel's dual failure was both a defective dosing system and the email alerts going down, but the real failure was depending on a single path of communication for something that could cause harm. One person who works in Azure even says this isn't really a defense of the outage, but it's also not Microsoft's fault. The architecture is just dangerous.
+
+So it's a good reminder that cloud reliability is great, but critical systems need to work without the cloud as a backup.
+
+The last thing everybody's talking about is Qwen4-Max, which is Alibaba's latest large language model. It just came out, and people are checking it out and running benchmarks. The interesting thing about Qwen is that it scores reasonably well but not at the absolute frontier of capability. Qwen4-Max gets a 43 on Artificial Analysis, whereas the latest GPT scores in the 46 range and there are models pushing even higher.
+
+But here's what's interesting: Alibaba isn't really trying to own the frontier. They're focusing on different tiers. The top-tier models are good but maybe not world-beating. But their Flash and smaller models are apparently excellent. And that's actually a smarter business strategy because the frontier is incredibly expensive and probably has winner-take-most dynamics. But really good, efficient models at different price points? That's a market with more room for competition.
+
+The HackerNews discussion is pretty technical, talking about token speeds, inference costs, scoring methodologies, and whether Qwen's stopped making progress. Some people are a little dismissive because it's not pushing the frontier, but others point out that Alibaba and DeepSeek both seem to be pursuing a strategy where they dominate the efficiency tier rather than chase raw capability. And honestly, that might be smarter.
+
+So here's something I'm realizing as I think about all this stuff: we're in this moment where the AI industry is kind of bifurcating. You've got these frontier labs like Anthropic that are willing to spend basically unlimited amounts of money chasing the best possible models. And then you've got other companies like Alibaba and DeepSeek that are focusing on efficiency and good-enough models that are way cheaper to run. Both strategies can work, but they're very different bets on how the market develops.
+
+Alright, last thing before I go. So why is the new Kindle screen textured to look like paper?
+
+Why is the new Kindle screen textured to look like paper? So you feel write at home.
+
+Oh man, I'm going to stand by that one. That's clever.
+
+Thanks so much for listening. I'm Andrew, and I'll talk to you tomorrow with what's happening next.
